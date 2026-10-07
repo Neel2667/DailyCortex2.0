@@ -1,0 +1,1 @@
+export const config={groqApiKey:process.env.GROQ_API_KEY??"",pexelsApiKey:process.env.PEXELS_API_KEY??"",showtimeBin:process.env.SHOWTIME_BIN??"showtime",edgeTtsVoice:process.env.EDGE_TTS_VOICE??"en-US-AndrewNeural"} as const;
