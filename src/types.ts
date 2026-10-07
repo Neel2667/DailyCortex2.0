@@ -1,0 +1,9 @@
+export type VideoFormat="short"|"long";
+export type SceneType="hook"|"footage"|"graphic"|"chart"|"screen"|"text"|"mixed"|"outro";
+export interface Scene{id:string;type:SceneType;durationSec:number;narration?:string;visualPrompt?:string;assetQuery?:string;caption?:string;notes?:string}
+export interface ContentSpec{id:string;title:string;topic:string;format:VideoFormat;durationSec:number;hook:string;script:string;voice:{provider:"edge-tts"|"showtime"|"external";voiceId:string};scenes:Scene[];metadata:{description:string;hashtags:string[]}}
+export interface ProviderResult<T>{ok:boolean;value?:T;error?:string}
+export interface Asset{id:string;url:string;width?:number;height?:number;durationSec?:number;source:string;attribution?:string}
+export interface AssetProvider{search(query:string,options?:{limit?:number;orientation?:"portrait"|"landscape"|"square"}):Promise<ProviderResult<Asset[]>>}
+export interface VoiceProvider{synthesize(text:string,voiceId:string,outputPath:string):Promise<ProviderResult<{outputPath:string;durationSec?:number}>>}
+export interface ProductionJob{id:string;specPath:string;workDir:string;outputPath:string}
