@@ -42,18 +42,21 @@ HEADLESS CHROME RENDER & POST-RENDER QA (-14 LUFS, frame verification)
 
 ```
 ├── docs/
-│   ├── ENGINEERING_AUDIT.md       # Comprehensive system audit & findings (Phase 1 & 2)
-│   └── VIDEO_PRODUCTION_REVIEW.md # Frame-by-frame visual inspection of rendered Short
+│   ├── PHASE_3A_FORENSIC_AUDIT.md # Independent verification of Phase 2 claims & root causes
+│   ├── THREE_VIDEO_BENCHMARK.md   # Cross-video anti-repetition audit across 3 distinct Shorts
+│   ├── VIDEO_PRODUCTION_REVIEW.md # Frame-by-frame visual inspection of rendered Short
+│   └── ENGINEERING_AUDIT.md       # Architectural audit and historical findings
 ├── src/
 │   ├── content/                   # Content Intelligence
 │   │   ├── fact-engine.ts         # Claim validation and scientific truth checks
-│   │   ├── topic-engine.ts        # Curated psychology/brain topics library
-│   │   ├── script-engine.ts       # Multi-structure script generation & pacing
-│   │   └── visual-planner.ts      # Multimodal storyboard & transition planner
+│   │   ├── topic-engine.ts        # Psychology/brain topics with deterministic template selection
+│   │   ├── narrative-templates.ts # 3 distinct 5-beat architectures (Paradox, Mystery, Scenario)
+│   │   ├── script-engine.ts       # Template-driven script generation & pacing
+│   │   └── visual-planner.ts      # 10-category visual strategy & semantic relevance scoring
 │   ├── media/                     # Media Intelligence & Normalization
 │   │   ├── media-normalizer.ts    # FFmpeg 1080x1920 cropping, WebM VP9 plates, SHA256 cache
 │   │   ├── asset-scorer.ts        # Multi-factor scoring & duplicate penalty
-│   │   ├── asset-manager.ts       # Multi-provider resolution & local caching
+│   │   ├── asset-manager.ts       # Multi-provider resolution, provenance manifest & local caching
 │   │   └── mock-provider.ts       # Deterministic offline asset provider
 │   ├── audio/                     # Audio & Sound Design
 │   │   ├── voice-engine.ts        # Showtime Kokoro ONNX speech & word timing
@@ -63,15 +66,31 @@ HEADLESS CHROME RENDER & POST-RENDER QA (-14 LUFS, frame verification)
 │   │   ├── html-builder.ts        # Mobile safe zone 9:16 HTML5 stage with WebM video plates
 │   │   ├── project-builder.ts     # Complete Showtime project disk assembler
 │   │   └── runner.ts              # Headless Chrome render & QA runner
-│   ├── quality/                   # Multi-Layer Quality Gates
-│   │   └── quality-gates.ts       # Content, visual, audio, caption, technical QA + independent ffprobe
+│   ├── quality/                   # Multi-Layer Quality Gates & Independent Auditing
+│   │   ├── quality-gates.ts       # 17-point pre-render and post-render validation gates
+│   │   ├── sync-auditor.ts        # Word-level monotonicity & scene envelope audit (sync-report.json)
+│   │   ├── audio-auditor.ts       # Integrated LUFS, true peak & silence audit (audio-quality.json)
+│   │   └── post-render-qa.ts      # Independent ffprobe/ffmpeg MP4 validator (post-render-report.json)
 │   ├── orchestration/             # Factory Pipeline
 │   │   └── pipeline.ts            # End-to-end multi-stage pipeline coordinator
 │   ├── cli.ts                     # CLI commands (dry-run, generate, render)
 │   ├── types.ts                   # Core domain type contracts
 │   └── config.ts                  # Environment configuration
-└── tests/                         # Full automated test suite (20 tests passing)
+└── tests/                         # Full automated test suite (29 tests passing)
 ```
+
+---
+
+## Output Format Contract
+
+Every production video strictly adheres to the mobile-first vertical Short specification:
+- **Width:** 1080 px
+- **Height:** 1920 px (Exact 9:16 aspect ratio)
+- **Framerate:** 30 CFR
+- **Pixel Format:** `yuv420p`
+- **Video Codec:** H.264 High Profile (BT.709 color matrix)
+- **Audio Codec:** AAC-LC @ 192 kbps, 48 kHz stereo
+- **Loudness:** -14.0 LUFS target, -1.0 dBTP ceiling, voice ducking enabled
 
 ---
 
@@ -98,6 +117,7 @@ Generates the full project for the target video *"Why Embarrassing Memories Neve
 ```bash
 npm run dry-run
 ```
+
 
 ### Generate Native Showtime Project with Real Local Voice
 Synthesizes real Kokoro neural speech (`vo.wav`), extracts millisecond-accurate word timestamps (`words.json`), canonically retimes all scenes, generates local 1080x1920 WebM motion plates, and assembles the full Showtime project:

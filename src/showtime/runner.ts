@@ -66,6 +66,8 @@ export class ShowtimeRunner {
     const args = ["render", projectDir, "-o", outputPath];
     if (options.preview) {
       args.push("--preview");
+    } else {
+      args.push("--size", "1080x1920");
     }
     if (options.workers) {
       args.push("--workers", String(options.workers));

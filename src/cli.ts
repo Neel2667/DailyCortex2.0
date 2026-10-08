@@ -39,26 +39,53 @@ async function main() {
     }, null, 2));
   } else if (command === "generate") {
     console.log("=== DAILYCORTEX 2.0 PROJECT GENERATOR ===");
+    const topicId = process.argv[3];
     const state = await pipeline.run({
-      jobId: `short-${Date.now()}`,
+      jobId: `short-${topicId || Date.now()}`,
+      topicId,
       dryRun: false,
       renderVideo: false
     });
     console.log(`Successfully generated Showtime project at: ${state.projectDir}`);
   } else if (command === "render") {
-    console.log("=== DAILYCORTEX 2.0 FULL RENDER PIPELINE ===");
+    const topicId = process.argv[3] ?? "embarrassing-memories";
+    console.log(`=== DAILYCORTEX 2.0 FULL RENDER PIPELINE [${topicId}] ===`);
     const state = await pipeline.run({
-      jobId: `short-render-${Date.now()}`,
+      jobId: `short-render-${topicId}`,
+      topicId,
       dryRun: false,
       renderVideo: true,
       previewOnly: false
     });
     console.log(`Render and QA complete. Video output: ${state.renderPath}`);
+  } else if (command === "benchmark") {
+    console.log("=== DAILYCORTEX 2.0 THREE-VIDEO BENCHMARK SUITE ===");
+    const benchmarks = [
+      { id: "benchmark-short-a", topicId: "embarrassing-memories", title: "Video A: Embarrassing Memories (Paradox Architecture)" },
+      { id: "benchmark-short-b", topicId: "doorway-effect", title: "Video B: Doorway Effect (Mystery Architecture)" },
+      { id: "benchmark-short-c", topicId: "spotlight-effect", title: "Video C: Spotlight Effect (Scenario Architecture)" }
+    ];
+
+    for (const b of benchmarks) {
+      console.log(`\n==================================================`);
+      console.log(`STARTING BENCHMARK: ${b.title}`);
+      console.log(`==================================================`);
+      const state = await pipeline.run({
+        jobId: b.id,
+        topicId: b.topicId,
+        dryRun: false,
+        renderVideo: true,
+        previewOnly: false
+      });
+      console.log(`[PASS] Benchmark ${b.id} completed. MP4: ${state.renderPath}`);
+    }
+    console.log(`\nAll 3 benchmark videos rendered and audited successfully!`);
   } else {
     console.log("Usage:");
-    console.log("  npm run dry-run    # Run deterministic pipeline and assemble project");
-    console.log("  npx tsx src/cli.ts generate # Generate native Showtime project with local voice");
-    console.log("  npx tsx src/cli.ts render   # Full end-to-end generate + render + QA");
+    console.log("  npm run dry-run                           # Run deterministic pipeline and assemble project");
+    console.log("  npx tsx src/cli.ts generate [topicId]     # Generate native Showtime project with local voice");
+    console.log("  npx tsx src/cli.ts render [topicId]       # Full generate + 1080x1920 render + QA");
+    console.log("  npx tsx src/cli.ts benchmark              # Execute full 3-video benchmark suite");
   }
 }
 

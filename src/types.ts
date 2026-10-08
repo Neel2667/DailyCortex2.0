@@ -80,7 +80,21 @@ export type SceneMood =
   | "fmri_scan_clinical"
   | "sunset_relief_peace";
 
+export type VisualStrategy =
+  | "real_world_footage"
+  | "kinetic_typography"
+  | "data_visualization"
+  | "ui_metaphor"
+  | "diagram_animation"
+  | "cinematic_ambient"
+  | "human_behavior"
+  | "scientific_visualization"
+  | "payoff_card";
+
 export type NarrativeStructure =
+  | "HOOK_PARADOX_MECHANISM_IMPLICATION_PAYOFF"
+  | "MYSTERY_CLUE_EXPLANATION_REVEAL_TAKEAWAY"
+  | "SCENARIO_PROBLEM_HIDDEN_MECHANISM_SURPRISE_ACTIONABLE_INSIGHT"
   | "OBSERVATION_SURPRISE"
   | "MYSTERY_REVEAL"
   | "CONTRADICTION_IMPLICATION"
@@ -90,6 +104,7 @@ export interface ScenePlan {
   id: string;
   sceneNumber: number;
   type: SceneType;
+  visualStrategy?: VisualStrategy;
   durationSec: number;
   narrationText: string;
   visualPrompt: string;
@@ -105,6 +120,12 @@ export interface ScenePlan {
     subtext?: string;
     badge?: string;
     accentColor?: string;
+    dataComparison?: {
+      itemA: { label: string; value: string; percentage: number; highlight?: boolean };
+      itemB: { label: string; value: string; percentage: number; highlight?: boolean };
+    };
+    diagramSteps?: Array<{ title: string; subtitle?: string; icon?: string }>;
+    metricsList?: Array<{ label: string; value: string; alert?: boolean }>;
   };
 }
 
@@ -240,4 +261,101 @@ export interface AssetProvider {
 
 export interface VoiceProvider {
   synthesize(text: string, voiceId: string, outputDir: string): Promise<ProviderResult<VoiceSynthesisResult>>;
+}
+
+export interface AssetProvenance {
+  provider: "pexels" | "openverse" | "local" | "mock";
+  providerAssetId: string;
+  sourceUrl?: string;
+  downloadUrl?: string;
+  searchQuery: string;
+  orientation: "portrait" | "landscape" | "square";
+  originalDimensions: { width: number; height: number };
+  normalizedDimensions: { width: number; height: number };
+  durationSec?: number;
+  checksum: string;
+  localPath: string;
+  normalizationSettings?: {
+    codec: string;
+    fps: number;
+    bitrate: string;
+  };
+  sceneAssignment: string | number;
+  timestamp: string;
+}
+
+export interface SyncReport {
+  audioDuration: number;
+  videoDuration: number;
+  holdDuration: number;
+  durationDelta: number;
+  sceneChecks: Array<{
+    sceneNumber: number;
+    sceneType: string;
+    plannedStart: number;
+    plannedEnd: number;
+    duration: number;
+    firstWord?: { word: string; start: number };
+    lastWord?: { word: string; end: number };
+    aligned: boolean;
+    discrepancySec: number;
+  }>;
+  captionChecks: Array<{
+    index: number;
+    text: string;
+    start: number;
+    end: number;
+    inSpeechRange: boolean;
+  }>;
+  monotonicityChecks: {
+    passed: boolean;
+    invertedPairsCount: number;
+  };
+  violations: string[];
+  passed: boolean;
+  status: "PASS" | "FAIL";
+}
+
+export interface AudioQualityReport {
+  integrated_lufs: number;
+  true_peak: number;
+  duration: number;
+  narration_duration: number;
+  music_duration: number;
+  sfx_count: number;
+  peak_events: number;
+  clipping_detected: boolean;
+  silence_ranges: Array<{ start: number; end: number; duration: number }>;
+  status: "PASS" | "FAIL";
+}
+
+export interface PostRenderReport {
+  videoPath: string;
+  fileSizeBytes: number;
+  duration: number;
+  dimensions: { width: number; height: number };
+  aspectRatio: number;
+  aspectRatioStr: string;
+  fps: number;
+  videoCodec: string;
+  pixelFormat: string;
+  audioCodec: string;
+  audioSampleRate: number;
+  audioChannels: number;
+  audioDuration: number;
+  faststart: boolean;
+  blackFramesCount: number;
+  frozenSectionsCount: number;
+  checks: {
+    exactDimensionsPass: boolean; // MUST be 1080x1920
+    exactAspectPass: boolean;     // MUST be 9:16
+    fpsPass: boolean;             // MUST be 30
+    videoCodecPass: boolean;      // H.264
+    audioCodecPass: boolean;      // AAC
+    audioDurationSyncPass: boolean; // delta < 0.5s
+    fileIntegrityPass: boolean;
+  };
+  passed: boolean;
+  violations: string[];
+  status: "PASS" | "FAIL";
 }

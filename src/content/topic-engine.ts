@@ -50,15 +50,36 @@ export const CURATED_TOPICS: TopicItem[] = [
     noveltyScore: 7.8,
     curiosityScore: 8.8,
     visualPotential: 8.5,
-    targetDurationSec: 34,
+    targetDurationSec: 37,
     tags: ["memory", "psychology", "focus", "daily-science"],
     claims: [
       {
         id: "de1",
         claim: "Passing through physical doorways creates cognitive event boundaries in working memory.",
         category: "VERIFIED_FACT",
-        source: "Radvansky et al., 2011, Notre Dame",
+        source: "Radvansky et al., 2011, Quarterly Journal of Experimental Psychology",
         confidence: 0.94
+      },
+      {
+        id: "de2",
+        claim: "Working memory updates mental models when environmental context shifts across a physical threshold.",
+        category: "VERIFIED_FACT",
+        source: "Zacks et al., 2007, Psychological Bulletin",
+        confidence: 0.91
+      },
+      {
+        id: "de3",
+        claim: "Looking back at the previous room restores perceptual context cues that assist memory retrieval.",
+        category: "INTERPRETATION",
+        source: "Smith & Vela, 2001, Environmental context-dependent memory",
+        confidence: 0.87
+      },
+      {
+        id: "de4",
+        claim: "Event segmentation functions as a cognitive strategy to prevent sensory overload across distinct spaces.",
+        category: "INTERPRETATION",
+        source: "Kurby & Zacks, 2008, Trends in Cognitive Sciences",
+        confidence: 0.85
       }
     ]
   },
@@ -70,15 +91,36 @@ export const CURATED_TOPICS: TopicItem[] = [
     noveltyScore: 8.0,
     curiosityScore: 9.0,
     visualPotential: 8.7,
-    targetDurationSec: 35,
+    targetDurationSec: 36,
     tags: ["social", "psychology", "anxiety", "perception"],
     claims: [
       {
         id: "se1",
-        claim: "People overestimate observer notice of embarrassing t-shirts by over 50%.",
+        claim: "People overestimate observer notice of embarrassing t-shirts by more than double the actual rate.",
         category: "VERIFIED_FACT",
-        source: "Gilovich et al., 2000, Cornell University",
+        source: "Gilovich, Medvec & Savitsky, 2000, Journal of Personality and Social Psychology",
         confidence: 0.96
+      },
+      {
+        id: "se2",
+        claim: "Egocentric anchoring causes individuals to use their internal intense awareness as the starting baseline for others' awareness.",
+        category: "VERIFIED_FACT",
+        source: "Epley & Gilovich, 2001, Psychological Science",
+        confidence: 0.93
+      },
+      {
+        id: "se3",
+        claim: "Social anxiety is intensified by the illusion of transparency, assuming our internal feelings are visible to external observers.",
+        category: "INTERPRETATION",
+        source: "Gilovich, Savitsky & Medvec, 1998, Journal of Personality and Social Psychology",
+        confidence: 0.89
+      },
+      {
+        id: "se4",
+        claim: "Most humans exist in their own self-referential cognitive spotlight, rarely allocating deep surveillance attention to bystanders.",
+        category: "INTERPRETATION",
+        source: "Kahneman, 2011, Thinking, Fast and Slow",
+        confidence: 0.88
       }
     ]
   }

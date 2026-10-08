@@ -14,127 +14,23 @@ export class ShowtimeHtmlBuilder {
       const transAttr = isFirst ? "" : `data-transition="${scene.transition}"`;
       const assetRelPath = scene.assetPath || `assets/scene-${scene.sceneNumber}.webm`;
 
+      const badgeText = scene.cardLayout?.badge ?? 'BRAIN ALERT';
+      const headlineText = scene.cardLayout?.headline ?? scene.onScreenText ?? 'DAILY CORTEX';
+      const subtext = scene.cardLayout?.subtext ?? '';
+      const accent = scene.cardLayout?.accentColor ?? '#38BDF8';
       let innerCard = "";
 
-      switch (scene.type) {
-        case "hook":
-          innerCard = `
-    <div class="card-hero" data-st-decor>
-      <div class="badge-tag" style="background: rgba(244, 63, 94, 0.22); color: #FDA4AF; border-color: rgba(244, 63, 94, 0.5);">
-        ${scene.cardLayout?.badge ?? 'BRAIN ALERT'}
-      </div>
-      <h1 class="t-hero" data-st="kinetic-type" data-style="pop" data-by="words" data-at="0.15">
-        ${scene.cardLayout?.headline ?? scene.onScreenText ?? '3:00 AM BRAIN LOOP'}
-      </h1>
-      <p class="t-sub" data-st="kinetic-type" data-style="rise" data-at="0.4">
-        ${scene.cardLayout?.subtext ?? 'Why does cringe keep you awake?'}
-      </p>
-      <div class="clock-display">
-        <span class="clock-digit">03</span><span class="clock-colon">:</span><span class="clock-digit">00</span>
-        <span class="clock-label">AM</span>
-      </div>
-    </div>`;
-          break;
-
-        case "reaction":
-          innerCard = `
-    <div class="card-glass" data-st-decor>
-      <div class="badge-tag" style="background: rgba(56, 189, 248, 0.22); color: #BAE6FD; border-color: rgba(56, 189, 248, 0.5);">
-        ${scene.cardLayout?.badge ?? 'MEMORY PARADOX'}
-      </div>
-      <h2 class="t-headline" data-st="kinetic-type" data-style="rise" data-at="0.2">
-        ${scene.cardLayout?.headline ?? 'THE PARADOX'}
-      </h2>
-      <div class="comparison-grid">
-        <div class="comparison-col faded">
-          <span class="comp-label">School Facts</span>
-          <div class="bar-fill" style="width: 35%;"></div>
-          <span class="comp-val">Fades away</span>
-        </div>
-        <div class="comparison-col active">
-          <span class="comp-label">Awkward Moment</span>
-          <div class="bar-fill highlight" style="width: 95%;"></div>
-          <span class="comp-val">Permanently Stuck</span>
-        </div>
-      </div>
-      <p class="t-note">${scene.cardLayout?.subtext ?? 'Textbook memories fade. Cringe stays sharp.'}</p>
-    </div>`;
-          break;
-
-        case "diagram":
-          innerCard = `
-    <div class="card-diagram" data-st-decor>
-      <div class="badge-tag" style="background: rgba(245, 158, 11, 0.22); color: #FDE68A; border-color: rgba(245, 158, 11, 0.45);">
-        ${scene.cardLayout?.badge ?? 'ANCESTRAL BLUEPRINT'}
-      </div>
-      <h2 class="t-headline">${scene.cardLayout?.headline ?? 'SOCIAL = PHYSICAL PAIN'}</h2>
-      <div class="threat-matrix">
-        <div class="matrix-node pulse">
-          <div class="node-icon-svg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <div class="node-title">Social Error</div>
-        </div>
-        <div class="matrix-arrow">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#CBD5E1" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="matrix-node warning">
-          <div class="node-icon-svg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          </div>
-          <div class="node-title">Tribal Exile</div>
-        </div>
-        <div class="matrix-arrow">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#CBD5E1" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="matrix-node critical">
-          <div class="node-icon-svg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="9" cy="10" r="2"/><circle cx="15" cy="10" r="2"/><path d="M12 2a8 8 0 0 0-8 8c0 3 1.5 5.5 4 7v3h8v-3c2.5-1.5 4-4 4-7a8 8 0 0 0-8-8z"/><line x1="9" y1="20" x2="15" y2="20"/></svg>
-          </div>
-          <div class="node-title">Mortal Danger</div>
-        </div>
-      </div>
-      <p class="t-subtext">${scene.cardLayout?.subtext ?? 'To primitive biology: Isolation was fatal.'}</p>
-    </div>`;
-          break;
-
-        case "mixed":
-          innerCard = `
-    <div class="card-glass" data-st-decor>
-      <div class="badge-tag" style="background: rgba(16, 185, 129, 0.22); color: #A7F3D0; border-color: rgba(16, 185, 129, 0.5);">
-        ${scene.cardLayout?.badge ?? 'NEURAL SCAN'}
-      </div>
-      <h2 class="t-headline">${scene.cardLayout?.headline ?? 'AMYGDALA OVERRIDE'}</h2>
-      <div class="status-box">
-        <div class="status-row">
-          <span class="status-label">Brain Region:</span>
-          <span class="status-value">Dorsal ACC + Amygdala</span>
-        </div>
-        <div class="status-row">
-          <span class="status-label">Priority Flag:</span>
-          <span class="status-badge alert">CRITICAL OVERRIDE</span>
-        </div>
-        <div class="status-row">
-          <span class="status-label">Instruction:</span>
-          <span class="status-value">Never Repeat Mistake</span>
-        </div>
-      </div>
-      <p class="t-subtext">${scene.cardLayout?.subtext ?? 'Emotion coats the memory in high-priority varnish.'}</p>
-    </div>`;
-          break;
-
-        case "payoff":
-        default:
-          innerCard = `
+      if (scene.type === "payoff" || scene.visualStrategy === "payoff_card") {
+        innerCard = `
     <div class="card-hero payoff" data-st-decor>
       <div class="badge-tag" style="background: rgba(139, 92, 246, 0.22); color: #DDD6FE; border-color: rgba(139, 92, 246, 0.5);">
-        ${scene.cardLayout?.badge ?? 'DAILY CORTEX'}
+        ${badgeText}
       </div>
       <h1 class="t-hero" data-st="kinetic-type" data-style="pop" data-by="words" data-at="0.1">
-        ${scene.cardLayout?.headline ?? 'SURVIVAL, NOT PUNISHMENT'}
+        ${headlineText}
       </h1>
       <p class="t-sub" data-st="kinetic-type" data-style="rise" data-at="0.35">
-        ${scene.cardLayout?.subtext ?? 'Your brain is protecting your belonging.'}
+        ${subtext}
       </p>
       <div class="channel-pill">
         <div class="channel-icon-svg">
@@ -143,7 +39,88 @@ export class ShowtimeHtmlBuilder {
         <span class="channel-name">Daily Cortex</span>
       </div>
     </div>`;
-          break;
+      } else if (scene.cardLayout?.dataComparison) {
+        const c = scene.cardLayout.dataComparison;
+        innerCard = `
+    <div class="card-glass" data-st-decor>
+      <div class="badge-tag" style="background: rgba(56, 189, 248, 0.22); color: #BAE6FD; border-color: rgba(56, 189, 248, 0.5);">
+        ${badgeText}
+      </div>
+      <h2 class="t-headline" data-st="kinetic-type" data-style="rise" data-at="0.2">
+        ${headlineText}
+      </h2>
+      <div class="comparison-grid">
+        <div class="comparison-col ${c.itemA.highlight ? 'active' : 'faded'}">
+          <span class="comp-label">${c.itemA.label}</span>
+          <div class="bar-fill ${c.itemA.highlight ? 'highlight' : ''}" style="width: ${c.itemA.percentage}%;"></div>
+          <span class="comp-val">${c.itemA.value}</span>
+        </div>
+        <div class="comparison-col ${c.itemB.highlight ? 'active' : 'faded'}">
+          <span class="comp-label">${c.itemB.label}</span>
+          <div class="bar-fill ${c.itemB.highlight ? 'highlight' : ''}" style="width: ${c.itemB.percentage}%;"></div>
+          <span class="comp-val">${c.itemB.value}</span>
+        </div>
+      </div>
+      <p class="t-note">${subtext}</p>
+    </div>`;
+      } else if (scene.cardLayout?.diagramSteps) {
+        const steps = scene.cardLayout.diagramSteps;
+        const nodesHtml = steps.map((s, i) => {
+          const arrowHtml = i < steps.length - 1 ? `
+        <div class="matrix-arrow">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#CBD5E1" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>` : "";
+          return `
+        <div class="matrix-node ${i === 0 ? 'pulse' : i === 1 ? 'warning' : 'critical'}">
+          <div class="node-icon-svg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          </div>
+          <div class="node-title">${s.title}</div>
+        </div>${arrowHtml}`;
+        }).join("");
+
+        innerCard = `
+    <div class="card-diagram" data-st-decor>
+      <div class="badge-tag" style="background: rgba(245, 158, 11, 0.22); color: #FDE68A; border-color: rgba(245, 158, 11, 0.45);">
+        ${badgeText}
+      </div>
+      <h2 class="t-headline">${headlineText}</h2>
+      <div class="threat-matrix">
+        ${nodesHtml}
+      </div>
+      <p class="t-subtext">${subtext}</p>
+    </div>`;
+      } else if (scene.cardLayout?.metricsList) {
+        const rowsHtml = scene.cardLayout.metricsList.map(m => `
+        <div class="status-row">
+          <span class="status-label">${m.label}:</span>
+          <span class="status-value ${m.alert ? 'status-badge alert' : ''}">${m.value}</span>
+        </div>`).join("");
+
+        innerCard = `
+    <div class="card-glass" data-st-decor>
+      <div class="badge-tag" style="background: rgba(16, 185, 129, 0.22); color: #A7F3D0; border-color: rgba(16, 185, 129, 0.5);">
+        ${badgeText}
+      </div>
+      <h2 class="t-headline">${headlineText}</h2>
+      <div class="status-box">
+        ${rowsHtml}
+      </div>
+      <p class="t-subtext">${subtext}</p>
+    </div>`;
+      } else {
+        innerCard = `
+    <div class="card-hero" data-st-decor>
+      <div class="badge-tag" style="background: rgba(244, 63, 94, 0.22); color: #FDA4AF; border-color: rgba(244, 63, 94, 0.5);">
+        ${badgeText}
+      </div>
+      <h1 class="t-hero" data-st="kinetic-type" data-style="pop" data-by="words" data-at="0.15">
+        ${headlineText}
+      </h1>
+      <p class="t-sub" data-st="kinetic-type" data-style="rise" data-at="0.4">
+        ${subtext}
+      </p>
+    </div>`;
       }
 
       return `  <!-- Scene ${scene.sceneNumber}: ${scene.type} (${scene.durationSec.toFixed(2)}s) -->

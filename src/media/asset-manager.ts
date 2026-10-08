@@ -1,4 +1,4 @@
-import type { AssetProvider, MediaAsset, ScenePlan } from "../types.js";
+import type { AssetProvider, MediaAsset, ScenePlan, AssetProvenance } from "../types.js";
 import { AssetScorer } from "./asset-scorer.js";
 import { MockAssetProvider } from "./mock-provider.js";
 import { PexelsProvider } from "../providers/pexels.js";
@@ -6,13 +6,15 @@ import { MediaNormalizer } from "./media-normalizer.js";
 import { config } from "../config.js";
 import { join } from "node:path";
 import { createWriteStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { stat, readFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
+import { createHash } from "node:crypto";
 
 export class AssetManager {
   private primaryProvider: AssetProvider;
   private fallbackProvider: AssetProvider;
   private normalizer: MediaNormalizer;
+  private provenanceRecords: AssetProvenance[] = [];
 
   constructor(primaryProvider?: AssetProvider, normalizer?: MediaNormalizer) {
     this.normalizer = normalizer ?? new MediaNormalizer();
@@ -24,6 +26,10 @@ export class AssetManager {
       this.primaryProvider = new MockAssetProvider(this.normalizer);
     }
     this.fallbackProvider = new MockAssetProvider(this.normalizer);
+  }
+
+  getProvenance(): AssetProvenance[] {
+    return [...this.provenanceRecords];
   }
 
   /**
@@ -127,6 +133,37 @@ export class AssetManager {
         );
         chosen.localPath = platePath;
       }
+
+      // Compute checksum and record provenance
+      let checksum = "unknown";
+      if (chosen.localPath) {
+        try {
+          const fileBuf = await readFile(chosen.localPath);
+          checksum = createHash("sha256").update(fileBuf).digest("hex");
+        } catch {}
+      }
+
+      const prov: AssetProvenance = {
+        provider: chosen.provider,
+        providerAssetId: chosen.id,
+        sourceUrl: chosen.url,
+        downloadUrl: chosen.url,
+        searchQuery: query,
+        orientation: chosen.orientation,
+        originalDimensions: { width: chosen.width, height: chosen.height },
+        normalizedDimensions: { width: 1080, height: 1920 },
+        durationSec: chosen.durationSec ?? scene.durationSec,
+        checksum,
+        localPath: chosen.localPath ?? "",
+        normalizationSettings: {
+          codec: "h264",
+          fps: 30,
+          bitrate: "4M"
+        },
+        sceneAssignment: scene.id,
+        timestamp: new Date().toISOString()
+      };
+      this.provenanceRecords.push(prov);
 
       selectedAssets.push(chosen);
       usedAssetIds.add(chosen.id);

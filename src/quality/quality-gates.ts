@@ -182,47 +182,69 @@ export class QualityGateEngine {
    */
   static async auditRenderedMp4(
     videoPath: string,
-    expectedDurationSec: number
+    expectedDurationSec: number,
+    allowPreview = false
   ): Promise<QualityGateResult[]> {
-    const normalizer = new MediaNormalizer();
+    const { PostRenderQA } = await import("./post-render-qa.js");
     const results: QualityGateResult[] = [];
 
     try {
-      const probe: MediaProbeResult = await normalizer.probeMedia(videoPath);
+      const qa = await PostRenderQA.auditMp4(videoPath, expectedDurationSec, allowPreview);
 
-      // 1. Valid video stream & dimensions
-      const is916 = (probe.width === 1080 && probe.height === 1920) || (probe.width === 720 && probe.height === 1280);
+      // 1. Exact 1080x1920 dimensions
+      results.push({
+        gate: "technical",
+        check: "mp4_exact_dimensions_1080x1920",
+        passed: qa.checks.exactDimensionsPass,
+        message: qa.checks.exactDimensionsPass
+          ? `Exact canonical dimensions confirmed: ${qa.dimensions.width}x${qa.dimensions.height}`
+          : `NON-CANONICAL DIMENSIONS: ${qa.dimensions.width}x${qa.dimensions.height} (Strict requirement: 1080x1920)`,
+        severity: "error"
+      });
+
+      // 2. Exact 9:16 aspect ratio
       results.push({
         gate: "technical",
         check: "mp4_aspect_ratio_9_16",
-        passed: is916,
-        message: is916
-          ? `Valid 9:16 vertical resolution (${probe.width}x${probe.height})`
-          : `Invalid aspect ratio: ${probe.width}x${probe.height}`,
+        passed: qa.checks.exactAspectPass,
+        message: qa.checks.exactAspectPass
+          ? `Valid 9:16 vertical aspect ratio (${qa.aspectRatioStr})`
+          : `Invalid aspect ratio: ${qa.aspectRatioStr} (must be exactly 9:16)`,
         severity: "error"
       });
 
-      // 2. Codec is H.264
-      const isH264 = probe.codec.toLowerCase().includes("h264") || probe.codec.toLowerCase().includes("avc");
+      // 3. Codec is H.264
       results.push({
         gate: "technical",
         check: "mp4_codec_h264",
-        passed: isH264,
-        message: isH264 ? `Valid video codec (${probe.codec})` : `Unexpected codec: ${probe.codec}`,
+        passed: qa.checks.videoCodecPass,
+        message: qa.checks.videoCodecPass
+          ? `Valid video codec (${qa.videoCodec})`
+          : `Unexpected codec: ${qa.videoCodec}`,
         severity: "error"
       });
 
-      // 3. Rendered Duration matches canonical expectation within 0.5s
-      const durationDelta = Math.abs(probe.durationSec - expectedDurationSec);
-      const isDurationAccurate = durationDelta <= 0.5;
+      // 4. Rendered Duration matches canonical expectation within 0.5s
+      const durationDelta = Math.abs(qa.duration - expectedDurationSec);
       results.push({
         gate: "technical",
         check: "mp4_duration_accuracy",
-        passed: isDurationAccurate,
+        passed: durationDelta <= 0.5,
         score: durationDelta,
-        message: isDurationAccurate
-          ? `Rendered duration (${probe.durationSec.toFixed(2)}s) matches canonical timeline (${expectedDurationSec.toFixed(2)}s)`
-          : `Duration mismatch: rendered is ${probe.durationSec.toFixed(2)}s, expected ${expectedDurationSec.toFixed(2)}s (delta: ${durationDelta.toFixed(2)}s)`,
+        message: durationDelta <= 0.5
+          ? `Rendered duration (${qa.duration.toFixed(2)}s) matches canonical timeline (${expectedDurationSec.toFixed(2)}s)`
+          : `Duration mismatch: rendered is ${qa.duration.toFixed(2)}s, expected ${expectedDurationSec.toFixed(2)}s (delta: ${durationDelta.toFixed(2)}s)`,
+        severity: "error"
+      });
+
+      // 5. Zero black frames
+      results.push({
+        gate: "technical",
+        check: "mp4_zero_black_frames",
+        passed: qa.blackFramesCount === 0,
+        message: qa.blackFramesCount === 0
+          ? "Zero black frame sequences detected"
+          : `${qa.blackFramesCount} black frame sequences detected`,
         severity: "error"
       });
     } catch (err: any) {
