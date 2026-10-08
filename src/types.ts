@@ -194,7 +194,7 @@ export interface StoryboardPlan {
   scenes: ScenePlan[];
   totalDurationSec: number;
   soundtrack: {
-    style: "minimal-pulse" | "synthwave" | "lofi-beat" | "cinematic-ambient";
+    style: "minimal-pulse" | "synthwave" | "lofi-chill" | "cinematic-ambient";
     bpm: number;
     duckingDb: number;
   };
@@ -408,7 +408,7 @@ export interface VideoMetadata {
 }
 
 export interface ThumbnailSpec {
-  path: string;
+  path: string; // 1080x1920 vertical Shorts cover
   width: number;
   height: number;
   format: "png" | "jpg";
@@ -416,6 +416,10 @@ export interface ThumbnailSpec {
   subtext?: string;
   accentColor?: string;
   safeZonePass: boolean;
+  landscapePath?: string; // 1280x720 16:9 YouTube custom thumbnail
+  landscapeWidth?: number;
+  landscapeHeight?: number;
+  targetUse?: string;
 }
 
 export interface YouTubeCredentials {
@@ -507,6 +511,8 @@ export interface FactoryJobState extends JobState {
   approvedForPublishing?: boolean;
   approvalTimestamp?: string;
   approvedBy?: string;
+  approvedVideoSha256?: string;
+  approvedMetadataFingerprint?: string;
   metadata?: VideoMetadata;
   thumbnail?: ThumbnailSpec;
   remoteVideoId?: string;

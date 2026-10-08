@@ -1,5 +1,7 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import type {
   FactoryStage,
@@ -100,7 +102,9 @@ export class FactoryEngine {
   async persistState(state: FactoryJobState): Promise<void> {
     await mkdir(state.workDir, { recursive: true });
     const targetPath = join(state.workDir, "job-state.json");
-    await writeFile(targetPath, JSON.stringify(state, null, 2), "utf-8");
+    const tmpPath = join(state.workDir, `job-state.json.tmp.${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    await writeFile(tmpPath, JSON.stringify(state, null, 2), "utf-8");
+    await rename(tmpPath, targetPath);
   }
 
   /**
@@ -113,6 +117,97 @@ export class FactoryEngine {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Verifies that approved video and metadata have not been tampered with or changed
+   */
+  async verifyApprovalIntegrity(state: FactoryJobState): Promise<{ valid: boolean; reason?: string }> {
+    if (!state.approvedForPublishing) {
+      return { valid: false, reason: "Job has not received editorial release authorization" };
+    }
+
+    if (state.approvedVideoSha256) {
+      if (!state.renderPath || !existsSync(state.renderPath)) {
+        return { valid: false, reason: "Approved video artifact is missing" };
+      }
+      const buf = await readFile(state.renderPath);
+      const currentSha = createHash("sha256").update(buf).digest("hex");
+      if (currentSha !== state.approvedVideoSha256) {
+        return { valid: false, reason: "Rendered MP4 checksum mismatch: video artifact altered after approval" };
+      }
+    }
+
+    if (state.approvedMetadataFingerprint) {
+      if (!state.metadata || state.metadata.contentFingerprint !== state.approvedMetadataFingerprint) {
+        return { valid: false, reason: "Metadata content fingerprint mismatch: metadata altered after approval" };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Explicit human editorial approval method
+   */
+  async approveJob(jobId: string, approverName: string, outputRoot = "data/jobs"): Promise<FactoryJobState> {
+    const workDir = join(outputRoot, jobId);
+    const state = await this.loadState(workDir);
+    if (!state) {
+      throw new Error(`Job ${jobId} not found in ${outputRoot}`);
+    }
+    if (state.factoryStage !== "AWAITING_APPROVAL") {
+      throw new Error(`Cannot approve job ${jobId} in stage ${state.factoryStage}; must be in AWAITING_APPROVAL`);
+    }
+
+    // Check technical gates from twenty-gates-audit.json
+    const reportsDir = join(workDir, "reports");
+    let gateAudit: any;
+    try {
+      gateAudit = JSON.parse(await readFile(join(reportsDir, "twenty-gates-audit.json"), "utf-8"));
+    } catch {
+      throw new Error(`Missing twenty-gates-audit.json for ${jobId}; quality gates must be audited before approval`);
+    }
+
+    const techGates = gateAudit.gates.filter((g: any) => g.id !== 20);
+    const techPassed = techGates.every((g: any) => g.passed);
+    if (!techPassed) {
+      const failed = techGates.filter((g: any) => !g.passed).map((g: any) => g.name);
+      throw new Error(`Cannot approve job ${jobId}: technical quality gates failed (${failed.join(", ")})`);
+    }
+
+    // Record checksums of approved artifacts
+    if (state.renderPath && existsSync(state.renderPath)) {
+      const buf = await readFile(state.renderPath);
+      state.approvedVideoSha256 = createHash("sha256").update(buf).digest("hex");
+    }
+    if (state.metadata) {
+      state.approvedMetadataFingerprint = state.metadata.contentFingerprint;
+    }
+
+    state.approvedForPublishing = true;
+    state.approvedBy = approverName;
+    state.approvalTimestamp = new Date().toISOString();
+
+    await this.transition(state, "READY_TO_PUBLISH", `Editorial release authorization granted by ${approverName}`);
+    return state;
+  }
+
+  /**
+   * Explicit rejection method
+   */
+  async rejectJob(jobId: string, reason: string, outputRoot = "data/jobs"): Promise<FactoryJobState> {
+    const workDir = join(outputRoot, jobId);
+    const state = await this.loadState(workDir);
+    if (!state) {
+      throw new Error(`Job ${jobId} not found in ${outputRoot}`);
+    }
+
+    state.approvedForPublishing = false;
+    state.approvedBy = undefined;
+    state.approvalTimestamp = undefined;
+    await this.transition(state, "QA_FAILED", `Editorial release rejected: ${reason}`);
+    return state;
   }
 
   /**
@@ -144,10 +239,12 @@ export class FactoryEngine {
       };
       await this.persistState(state);
     } else if (state.factoryStage === "COMPLETED") {
-      if (!options.forceRerun) {
+      const renderMissing = options.renderVideo && (!state.renderPath || !existsSync(state.renderPath));
+      if (renderMissing || options.forceRerun) {
+        await this.transition(state, "QUEUED", renderMissing ? "Rerunning job to render missing video artifact" : "Forced rerun initiated by operator");
+      } else {
         return state;
       }
-      await this.transition(state, "QUEUED", "Forced rerun initiated by operator");
     } else if (state.factoryStage !== "QUEUED") {
       await this.transition(state, "QUEUED", `Resuming/retrying job from stage ${state.factoryStage}`);
     }
@@ -287,17 +384,35 @@ export class FactoryEngine {
 
       // 8. APPROVAL & PUBLISHING GATES
       if (options.autoApprove) {
+        if (config.youtubePublishingEnabled) {
+          throw new Error("autoApprove cannot bypass required human authorization when YouTube publishing is enabled.");
+        }
         state.approvedForPublishing = true;
         state.approvedBy = "operator-auto-approved";
         state.approvalTimestamp = new Date().toISOString();
+        if (state.renderPath && existsSync(state.renderPath)) {
+          const buf = await readFile(state.renderPath);
+          state.approvedVideoSha256 = createHash("sha256").update(buf).digest("hex");
+        }
+        if (state.metadata) {
+          state.approvedMetadataFingerprint = state.metadata.contentFingerprint;
+        }
         await this.transition(state, "AWAITING_APPROVAL", "Quality gates satisfied. Awaiting release approval.");
-        await this.transition(state, "READY_TO_PUBLISH", "Editorial release approval granted.");
+        await this.transition(state, "READY_TO_PUBLISH", "Editorial release approval granted (simulation mode).");
       } else {
         await this.transition(state, "AWAITING_APPROVAL", "Quality gates passed. Waiting for explicit human editorial approval.");
         return state;
       }
 
       // 9. SCHEDULING / UPLOAD GATES
+      const integrity = await this.verifyApprovalIntegrity(state);
+      if (!integrity.valid) {
+        state.approvedForPublishing = false;
+        state.approvedBy = undefined;
+        await this.transition(state, "QA_FAILED", `Approval invalidated: ${integrity.reason}`);
+        throw new Error(`Publication blocked: ${integrity.reason}`);
+      }
+
       if (options.dryRun || !config.youtubePublishingEnabled) {
         await this.transition(state, "UPLOAD_PENDING", "Dry-run publishing initiated");
         const uploadResult = await this.youtubeClient.uploadVideo(

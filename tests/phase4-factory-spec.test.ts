@@ -117,7 +117,7 @@ describe("Phase 4: Factory Specification & Quality Gates", () => {
       expect(thumb.format).toBe("jpg");
       expect(thumb.safeZonePass).toBe(true);
       expect(thumb.headline).toBe("UNFINISHED TASKS");
-    });
+    }, 20000);
   });
 
   describe("20 Mandatory Quality & Safety Gates", () => {
@@ -194,6 +194,9 @@ describe("Phase 4: Factory Specification & Quality Gates", () => {
           safeZonePass: true
         },
         isDuplicate: false,
+        audioReportPassed: true,
+        syncReportPassed: true,
+        provenanceCount: storyboard.scenes.length,
         approvedForPublishing: true // Explicitly approved
       });
 

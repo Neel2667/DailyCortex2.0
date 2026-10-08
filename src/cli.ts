@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import { promisify } from "util";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "./config.js";
 import { FactoryEngine } from "./factory/factory-engine.js";
@@ -165,6 +165,24 @@ async function main() {
         process.exit(1);
       }
 
+      let audioReportPassed = false;
+      try {
+        const audioJson = JSON.parse(await readFile(join(reportsDir, "audio-quality.json"), "utf-8"));
+        audioReportPassed = audioJson.status === "PASS";
+      } catch {}
+
+      let syncReportPassed = false;
+      try {
+        const syncJson = JSON.parse(await readFile(join(reportsDir, "sync-report.json"), "utf-8"));
+        syncReportPassed = syncJson.status === "PASS" || syncJson.passed === true;
+      } catch {}
+
+      let provenanceCount = 0;
+      try {
+        const provJson = JSON.parse(await readFile(join(reportsDir, "provenance-manifest.json"), "utf-8"));
+        provenanceCount = provJson.length;
+      } catch {}
+
       const postRenderReport = await PostRenderQA.auditMp4(videoPath, state.storyboard.totalDurationSec, false);
       const audit = await QualityGateEngine.audit20PublishingGates({
         storyboard: state.storyboard,
@@ -173,8 +191,14 @@ async function main() {
         postRenderReport,
         metadata: state.metadata,
         thumbnail: state.thumbnail,
+        audioReportPassed,
+        syncReportPassed,
+        provenanceCount,
         approvedForPublishing: state.approvedForPublishing
       });
+
+      await writeFile(join(reportsDir, "post-render-report.json"), JSON.stringify(postRenderReport, null, 2), "utf-8");
+      await writeFile(join(reportsDir, "twenty-gates-audit.json"), JSON.stringify(audit, null, 2), "utf-8");
 
       console.log(`Results: ${audit.passedCount}/20 Gates PASSED (canPublish: ${audit.canPublish ? "YES" : "NO"})`);
       for (const g of audit.gates) {

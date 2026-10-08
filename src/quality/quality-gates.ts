@@ -345,7 +345,7 @@ export class QualityGateEngine {
     });
 
     // Gate 5: Audio quality and loudness
-    const audioOk = params.audioReportPassed ?? true;
+    const audioOk = params.isDryRun ? true : (params.audioReportPassed === true);
     gates.push({
       id: 5,
       name: "audio_quality_loudness",
@@ -412,7 +412,7 @@ export class QualityGateEngine {
     });
 
     // Gate 11: Video/audio duration agreement
-    const syncOk = params.isDryRun ? true : (params.postRenderReport?.checks.audioDurationSyncPass ?? true);
+    const syncOk = params.isDryRun ? true : (params.postRenderReport?.checks.audioDurationSyncPass === true);
     gates.push({
       id: 11,
       name: "video_audio_duration_agreement",
@@ -422,7 +422,7 @@ export class QualityGateEngine {
     });
 
     // Gate 12: Word and caption synchronization
-    const wordSyncOk = params.syncReportPassed ?? true;
+    const wordSyncOk = params.isDryRun ? true : (params.syncReportPassed === true);
     gates.push({
       id: 12,
       name: "word_caption_synchronization",
@@ -442,12 +442,12 @@ export class QualityGateEngine {
     });
 
     // Gate 14: Black-frame, frozen-frame, corruption checks
-    const blackFramesOk = params.isDryRun ? true : ((params.postRenderReport?.blackFramesCount ?? 0) === 0);
+    const blackFramesOk = params.isDryRun ? true : Boolean(params.postRenderReport && params.postRenderReport.blackFramesCount === 0);
     gates.push({
       id: 14,
       name: "black_frozen_frames_check",
       passed: blackFramesOk,
-      message: blackFramesOk ? "Zero black frames and zero corrupted frames detected" : `${params.postRenderReport?.blackFramesCount} black frames detected`,
+      message: blackFramesOk ? "Zero black frames and zero corrupted frames detected" : `${params.postRenderReport?.blackFramesCount ?? "Missing"} black frames detected`,
       severity: "error"
     });
 
@@ -508,7 +508,7 @@ export class QualityGateEngine {
       name: "release_authorization",
       passed: releaseOk,
       message: releaseOk ? "Editorial release authorization GRANTED" : "AWAITING_APPROVAL: Editorial release authorization not yet granted",
-      severity: "warning" // Warning until human approval, blocks publishing if not granted
+      severity: "error" // Critical release gate; blocks publication until explicit approval
     });
 
     const passedCount = gates.filter(g => g.passed).length;

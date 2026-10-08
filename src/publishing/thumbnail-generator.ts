@@ -48,6 +48,25 @@ export class ThumbnailGenerator {
       throw new Error(`Generated thumbnail is corrupt or too small (${fileStats.size} bytes)`);
     }
 
+    // Also generate YouTube Data API compliant 16:9 custom thumbnail (1280x720)
+    const landscapeOutputPath = join(jobDir, "thumbnail-16x9.jpg");
+    if (options.videoPath) {
+      try {
+        await execAsync(`ffmpeg -y -ss 00:00:01.500 -i "${options.videoPath}" -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=0x070913" -vframes 1 -q:v 2 "${landscapeOutputPath}"`);
+      } catch {
+        await ThumbnailGenerator.renderSyntheticLandscapeThumbnail(landscapeOutputPath, topic, headline, subtext, accentColor);
+      }
+    } else {
+      await ThumbnailGenerator.renderSyntheticLandscapeThumbnail(landscapeOutputPath, topic, headline, subtext, accentColor);
+    }
+
+    const probeCmdLandscape = `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${landscapeOutputPath}"`;
+    const { stdout: stdoutLandscape } = await execAsync(probeCmdLandscape);
+    const probeLandscape = JSON.parse(stdoutLandscape);
+    const streamLandscape = probeLandscape.streams?.[0];
+    const landscapeWidth = streamLandscape?.width ?? 1280;
+    const landscapeHeight = streamLandscape?.height ?? 720;
+
     return {
       path: outputPath,
       width,
@@ -56,7 +75,11 @@ export class ThumbnailGenerator {
       headline,
       subtext,
       accentColor,
-      safeZonePass: width === 1080 && height === 1920
+      safeZonePass: width === 1080 && height === 1920,
+      landscapePath: landscapeOutputPath,
+      landscapeWidth,
+      landscapeHeight,
+      targetUse: "shorts_vertical_cover_and_api_16x9"
     };
   }
 
@@ -174,6 +197,39 @@ export class ThumbnailGenerator {
       default:
         return "#38BDF8";
     }
+  }
+
+  private static async renderSyntheticLandscapeThumbnail(
+    outputPath: string,
+    topic: TopicItem,
+    headline: string,
+    subtext: string,
+    accentColor: string
+  ): Promise<void> {
+    const svgPath = outputPath.replace(/\.jpg$/, ".svg");
+    const svg = `
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg16" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070913" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg16)" />
+  <circle cx="640" cy="360" r="280" fill="${accentColor}" opacity="0.15" />
+  <text x="640" y="240" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="32" font-weight="800" fill="${accentColor}" letter-spacing="4">
+    DAILY CORTEX
+  </text>
+  <text x="640" y="360" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="900" fill="#FFFFFF">
+    ${ThumbnailGenerator.escapeXml(headline)}
+  </text>
+  <text x="640" y="440" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="28" font-weight="600" fill="#94A3B8">
+    ${ThumbnailGenerator.escapeXml(subtext)}
+  </text>
+</svg>`;
+    await writeFile(svgPath, svg.trim(), "utf-8");
+    await execAsync(`ffmpeg -y -f lavfi -i "color=c=0x0f172a:s=1280x720:d=0.1" -vframes 1 -q:v 2 "${outputPath}"`);
   }
 
   private static escapeXml(unsafe: string): string {

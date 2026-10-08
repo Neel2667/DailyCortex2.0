@@ -31,7 +31,7 @@ export class VisualPlanner {
 
     const totalDurationSec = Number(scenes.reduce((sum, s) => sum + s.durationSec, 0).toFixed(2));
 
-    let soundtrackStyle: "minimal-pulse" | "synthwave" | "lofi-beat" | "cinematic-ambient" = "minimal-pulse";
+    let soundtrackStyle: "minimal-pulse" | "synthwave" | "lofi-chill" | "cinematic-ambient" = "minimal-pulse";
     let soundtrackBpm = 96;
 
     if (topic.id === "doorway-effect" || topic.category === "memory") {
@@ -41,7 +41,7 @@ export class VisualPlanner {
       soundtrackStyle = "synthwave";
       soundtrackBpm = 104;
     } else if (topic.id === "zeigarnik-effect" || topic.category === "psychology") {
-      soundtrackStyle = "lofi-beat";
+      soundtrackStyle = "lofi-chill";
       soundtrackBpm = 92;
     }
 

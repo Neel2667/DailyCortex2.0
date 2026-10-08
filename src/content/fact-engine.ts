@@ -183,4 +183,72 @@ export class FactEngine {
       notes
     };
   }
+
+  /**
+   * Scene-level evidence audit:
+   * Verifies that each spoken mechanism/insight scene maps to an established empirical claim.
+   */
+  static auditSceneEvidence(
+    scenes: Array<{ narrationText: string; type: string }>,
+    claims: FactualClaim[]
+  ): { passed: boolean; groundedRatio: number; issues: string[] } {
+    const issues: string[] = [];
+    const criticalScenes = scenes.filter(s => s.type === "diagram" || s.type === "reaction" || s.type === "mixed");
+    let groundedCount = 0;
+
+    for (const sc of criticalScenes) {
+      const sceneLower = sc.narrationText.toLowerCase();
+      const hasGrounding = claims.some(c => {
+        const claimKeywords = c.claim.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(" ").filter(w => w.length > 5);
+        return claimKeywords.some(k => sceneLower.includes(k));
+      });
+
+      if (hasGrounding) {
+        groundedCount++;
+      } else {
+        issues.push(`Scene with narration "${sc.narrationText.slice(0, 40)}..." has no direct grounding in verified claims`);
+      }
+    }
+
+    const ratio = criticalScenes.length > 0 ? groundedCount / criticalScenes.length : 1;
+    const passed = ratio >= 0.6;
+
+    return {
+      passed,
+      groundedRatio: Number(ratio.toFixed(2)),
+      issues
+    };
+  }
+
+  /**
+   * Contradiction detector:
+   * Checks whether the script directly contradicts established cognitive/psychological findings.
+   */
+  static auditContradictions(scriptText: string, topicId: string): { contradicted: boolean; reasons: string[] } {
+    const reasons: string[] = [];
+    const lower = scriptText.toLowerCase();
+
+    if (topicId === "embarrassing-memories") {
+      if (lower.includes("memories easily fade") || lower.includes("cringe disappears quickly")) {
+        reasons.push("Contradicts emotional memory consolidation findings (amygdala tag preserves social threat memories)");
+      }
+    } else if (topicId === "doorway-effect") {
+      if (lower.includes("doorways boost your memory") || lower.includes("doorways permanently damage brain")) {
+        reasons.push("Contradicts event horizon / working memory compartmentalization findings");
+      }
+    } else if (topicId === "spotlight-effect") {
+      if (lower.includes("everyone is constantly watching you") || lower.includes("people notice every flaw")) {
+        reasons.push("Contradicts spotlight effect findings (Gilovich et al., 2000: observers notice far less than estimated)");
+      }
+    } else if (topicId === "zeigarnik-effect") {
+      if (lower.includes("must always finish every task") || lower.includes("planning does not help")) {
+        reasons.push("Contradicts goal fulfillment / plan-making findings (Masicampo & Baumeister, 2011: plans close cognitive loops)");
+      }
+    }
+
+    return {
+      contradicted: reasons.length > 0,
+      reasons
+    };
+  }
 }

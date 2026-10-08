@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "../config.js";
 import type { ScheduleConfig, PublicationQueueItem } from "../types.js";
@@ -45,7 +45,9 @@ export class PublicationScheduler {
   async saveQueue(queue: PublicationQueueItem[]): Promise<void> {
     const dir = join(this.queueFilePath, "..");
     await mkdir(dir, { recursive: true });
-    await writeFile(this.queueFilePath, JSON.stringify(queue, null, 2), "utf-8");
+    const tmpPath = `${this.queueFilePath}.tmp.${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await writeFile(tmpPath, JSON.stringify(queue, null, 2), "utf-8");
+    await rename(tmpPath, this.queueFilePath);
   }
 
   /**

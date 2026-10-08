@@ -1,7 +1,11 @@
-import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
+import { readFile, writeFile, mkdir, stat, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { createReadStream } from "node:fs";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import { config } from "../config.js";
+
+const execAsync = promisify(exec);
 import type {
   YouTubeCredentials,
   YouTubeUploadRequest,
@@ -100,6 +104,10 @@ export class YouTubeClient {
    * Refreshes OAuth2 access token safely using Google's token endpoint
    */
   async getAccessToken(): Promise<string> {
+    if (!config.youtubePublishingEnabled) {
+      throw new Error("YouTube publishing is disabled by configuration (YOUTUBE_PUBLISHING_ENABLED=false)");
+    }
+
     if (this.tokenCache && Date.now() < this.tokenCache.expiresAt - 60000) {
       return this.tokenCache.accessToken;
     }
@@ -201,6 +209,33 @@ export class YouTubeClient {
     const isDuplicate = await this.isDuplicateUpload(contentFingerprint);
     if (isDuplicate) {
       issues.push(`Duplicate content detected! Fingerprint ${contentFingerprint.slice(0, 16)}... has already been uploaded.`);
+    }
+
+    // 4. Thumbnail contract checks (if thumbnailPath is provided)
+    if (req.thumbnailPath) {
+      try {
+        const thumbStat = await stat(req.thumbnailPath);
+        if (thumbStat.size > 2 * 1024 * 1024) {
+          issues.push(`Custom thumbnail exceeds 2MB limit: ${thumbStat.size} bytes`);
+        }
+        const probeCmd = `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${req.thumbnailPath}"`;
+        const { stdout } = await execAsync(probeCmd);
+        const probe = JSON.parse(stdout);
+        const width = probe.streams?.[0]?.width ?? 0;
+        const height = probe.streams?.[0]?.height ?? 0;
+        if (width === 1080 && height === 1920) {
+          issues.push(`Invalid custom thumbnail aspect ratio: ${width}x${height} is a 9:16 vertical Shorts cover. YouTube Data API thumbnails.set strictly requires a 16:9 image (e.g. 1280x720). Use thumbnail-16x9.jpg for API upload.`);
+        } else if (width > 0 && height > 0) {
+          const ratio = width / height;
+          if (Math.abs(ratio - 16 / 9) > 0.05) {
+            issues.push(`Invalid custom thumbnail aspect ratio: ${width}x${height} (ratio ${(ratio).toFixed(2)}). YouTube Data API requires 16:9.`);
+          }
+        }
+      } catch (err: any) {
+        if (!dryRun) {
+          issues.push(`Custom thumbnail file error: ${err.message}`);
+        }
+      }
     }
 
     return {
@@ -383,6 +418,62 @@ export class YouTubeClient {
     registry.push(entry);
     const dir = join(this.registryFilePath, "..");
     await mkdir(dir, { recursive: true });
-    await writeFile(this.registryFilePath, JSON.stringify(registry, null, 2), "utf-8");
+    const tmpPath = `${this.registryFilePath}.tmp.${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await writeFile(tmpPath, JSON.stringify(registry, null, 2), "utf-8");
+    await rename(tmpPath, this.registryFilePath);
+  }
+
+  /**
+   * Uploads a custom thumbnail via YouTube Data API thumbnails.set
+   * Strictly enforces 16:9 aspect ratio (e.g. 1280x720) and <=2MB file size.
+   */
+  async uploadCustomThumbnail(
+    videoId: string,
+    thumbnailPath: string,
+    options: { dryRun?: boolean } = {}
+  ): Promise<{ success: boolean; videoId: string; thumbnailPath: string; dryRun: boolean }> {
+    const isDryRun = options.dryRun || !config.youtubePublishingEnabled;
+    const thumbStat = await stat(thumbnailPath);
+    if (thumbStat.size > 2 * 1024 * 1024) {
+      throw new Error(`Thumbnail exceeds 2MB YouTube API limit (${thumbStat.size} bytes)`);
+    }
+
+    const { stdout } = await execAsync(`ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of json "${thumbnailPath}"`);
+    const probe = JSON.parse(stdout);
+    const width = probe.streams?.[0]?.width ?? 0;
+    const height = probe.streams?.[0]?.height ?? 0;
+
+    if (width === 1080 && height === 1920) {
+      throw new Error(`Invalid custom thumbnail: 1080x1920 is a 9:16 vertical Shorts cover asset. YouTube Data API thumbnails.set strictly requires a 16:9 image (e.g. 1280x720, <=2MB).`);
+    }
+    const ratio = width / height;
+    if (Math.abs(ratio - 16 / 9) > 0.05) {
+      throw new Error(`Invalid custom thumbnail aspect ratio ${width}x${height}. YouTube Data API requires 16:9.`);
+    }
+
+    if (isDryRun) {
+      return { success: true, videoId, thumbnailPath, dryRun: true };
+    }
+
+    const accessToken = await this.getAccessToken();
+    const url = `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${videoId}`;
+    const fileStream = createReadStream(thumbnailPath);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "image/jpeg"
+      },
+      body: fileStream as any,
+      // @ts-ignore
+      duplex: "half"
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`YouTube thumbnails.set failed (${res.status}): ${errText}`);
+    }
+
+    return { success: true, videoId, thumbnailPath, dryRun: false };
   }
 }
