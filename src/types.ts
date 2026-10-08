@@ -34,8 +34,14 @@ export interface FactualClaim {
   claim: string;
   category: ClaimCategory;
   source?: string;
+  sourceTitle?: string;
   url?: string;
+  sourceUrl?: string;
+  excerpt?: string;
+  publicationDate?: string;
+  retrievedAt?: string;
   confidence: number; // 0.0 - 1.0
+  qualification?: string;
   notes?: string;
 }
 
@@ -358,4 +364,159 @@ export interface PostRenderReport {
   passed: boolean;
   violations: string[];
   status: "PASS" | "FAIL";
+}
+
+// ============================================================================
+// PHASE 4: PRODUCTION FACTORY, PUBLISHING, SCHEDULING & ANALYTICS TYPES
+// ============================================================================
+
+export type FactoryStage =
+  | "QUEUED"
+  | "RESEARCHING"
+  | "SCRIPTING"
+  | "PLANNING"
+  | "GENERATING_AUDIO"
+  | "ACQUIRING_MEDIA"
+  | "RENDERING"
+  | "QA_RUNNING"
+  | "QA_FAILED"
+  | "AWAITING_APPROVAL"
+  | "READY_TO_PUBLISH"
+  | "UPLOAD_PENDING"
+  | "UPLOADING"
+  | "UPLOADED_PRIVATE"
+  | "SCHEDULED"
+  | "PUBLISHED"
+  | "ANALYTICS_PENDING"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "FAILED";
+
+export interface VideoMetadata {
+  title: string;
+  description: string;
+  hashtags: string[];
+  tags: string[];
+  hookDescription: string;
+  contentFingerprint: string;
+  provenanceRecord: {
+    generatedAt: string;
+    topicId: string;
+    scriptWordCount: number;
+    version: string;
+  };
+}
+
+export interface ThumbnailSpec {
+  path: string;
+  width: number;
+  height: number;
+  format: "png" | "jpg";
+  headline: string;
+  subtext?: string;
+  accentColor?: string;
+  safeZonePass: boolean;
+}
+
+export interface YouTubeCredentials {
+  clientId: string;
+  clientSecret: string;
+  refreshToken?: string;
+  accessToken?: string;
+  tokenExpiry?: number;
+}
+
+export interface YouTubeUploadRequest {
+  filePath: string;
+  title: string;
+  description: string;
+  tags: string[];
+  privacyStatus: "private" | "unlisted" | "public";
+  publishAt?: string;
+  thumbnailPath?: string;
+}
+
+export interface YouTubeUploadResult {
+  videoId: string;
+  url: string;
+  status: "uploaded" | "scheduled" | "failed";
+  privacyStatus: string;
+  scheduledTime?: string;
+  uploadedAt: string;
+  verified: boolean;
+  remoteTitle?: string;
+  remoteDescription?: string;
+}
+
+export interface ScheduleSlot {
+  slotIndex: number;
+  timeStr: string; // e.g. "09:00", "12:00", "15:00", "17:00", "19:00", "21:00"
+  timezone: string;
+}
+
+export interface ScheduleConfig {
+  timezone: string;
+  slotsPerDay: number;
+  slotTimes: string[]; // 6 slots: ["09:00", "12:00", "15:00", "17:00", "19:00", "21:00"]
+  enabled: boolean;
+}
+
+export interface PublicationQueueItem {
+  id: string;
+  jobId: string;
+  title: string;
+  scheduledFor: string; // ISO 8601
+  status: "pending" | "approved" | "uploaded_private" | "scheduled" | "published" | "missed" | "cancelled";
+  retryCount: number;
+  remoteVideoId?: string;
+  updatedAt: string;
+  error?: string;
+}
+
+export interface VideoAnalyticsRecord {
+  jobId: string;
+  videoId: string;
+  capturedAt: string;
+  videoAgeHours: number;
+  views: number;
+  watchTimeMinutes: number;
+  avgViewDurationSec: number;
+  avgPercentageViewed: number;
+  likes: number;
+  comments: number;
+  subscribersGained: number;
+  subscribersLost: number;
+  topic: string;
+  narrativeStructure: string;
+  visualStrategy: string;
+  durationSec: number;
+}
+
+export interface ExperimentRecommendation {
+  id: string;
+  type: "hook" | "pacing" | "narrative" | "visual" | "topic";
+  hypothesis: string;
+  evidence: string;
+  suggestedAction: string;
+  confidence: number; // 0.0 - 1.0
+  createdAt: string;
+}
+
+export interface FactoryJobState extends JobState {
+  factoryStage: FactoryStage;
+  approvedForPublishing?: boolean;
+  approvalTimestamp?: string;
+  approvedBy?: string;
+  metadata?: VideoMetadata;
+  thumbnail?: ThumbnailSpec;
+  remoteVideoId?: string;
+  remoteVideoUrl?: string;
+  publishedAt?: string;
+  scheduledFor?: string;
+  publicationStatus?: "unapproved" | "ready" | "scheduled" | "published";
+  history: Array<{
+    stage: FactoryStage;
+    timestamp: string;
+    note?: string;
+  }>;
 }

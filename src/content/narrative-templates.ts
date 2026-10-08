@@ -164,11 +164,61 @@ export class NarrativeTemplateRegistry {
     }
   };
 
+  /**
+   * Template D: Zeigarnik Cognitive Tension Architecture
+   */
+  static readonly ZEIGARNIK_TEMPLATE: NarrativeTemplate = {
+    id: "MYSTERY_CLUE_EXPLANATION_REVEAL_TAKEAWAY",
+    name: "Cognitive Tension & Resolution",
+    description: "Explores why incomplete tasks hijack active working memory and reveals the psychological relief mechanism.",
+    targetCategory: "psychology",
+    generateBeats(topic: TopicItem): ScriptBeat[] {
+      return [
+        {
+          beatNumber: 1,
+          name: "hook",
+          narration: "Ever notice why you can never stop thinking about the one email you forgot to send?",
+          estimatedSec: 6.8,
+          targetVisual: "hook"
+        },
+        {
+          beatNumber: 2,
+          name: "tension",
+          narration: "You can finish twenty tasks today, but your brain obsesses exclusively over the single unfinished one.",
+          estimatedSec: 7.2,
+          targetVisual: "reaction"
+        },
+        {
+          beatNumber: 3,
+          name: "mechanism",
+          narration: "Psychologists call this the Zeigarnik Effect: interrupted tasks sustain cognitive tension, locking open in working memory.",
+          estimatedSec: 8.4,
+          targetVisual: "diagram"
+        },
+        {
+          beatNumber: 4,
+          name: "insight",
+          narration: "Your brain interprets open loops as active priorities, refusing to archive the file until closure is signaled.",
+          estimatedSec: 7.5,
+          targetVisual: "mixed"
+        },
+        {
+          beatNumber: 5,
+          name: "payoff",
+          narration: "You don't actually have to finish the task. Research proves writing down a specific plan immediately closes the loop.",
+          estimatedSec: 8.1,
+          targetVisual: "payoff"
+        }
+      ];
+    }
+  };
+
   static getAllTemplates(): NarrativeTemplate[] {
     return [
       NarrativeTemplateRegistry.PARADOX_TEMPLATE,
       NarrativeTemplateRegistry.MYSTERY_TEMPLATE,
-      NarrativeTemplateRegistry.SCENARIO_TEMPLATE
+      NarrativeTemplateRegistry.SCENARIO_TEMPLATE,
+      NarrativeTemplateRegistry.ZEIGARNIK_TEMPLATE
     ];
   }
 
@@ -180,6 +230,9 @@ export class NarrativeTemplateRegistry {
    * Deterministically select narrative template based on topic metadata and category
    */
   static selectTemplate(topic: TopicItem): NarrativeTemplate {
+    if (topic.id === "zeigarnik-effect") {
+      return NarrativeTemplateRegistry.ZEIGARNIK_TEMPLATE;
+    }
     if (topic.id === "embarrassing-memories" || topic.category === "brain_science") {
       return NarrativeTemplateRegistry.PARADOX_TEMPLATE;
     }
