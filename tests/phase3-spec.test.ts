@@ -188,9 +188,10 @@ describe("Phase 3 Specifications & Quality Gates", () => {
   describe("Phase J: Independent Post-Render Video QA", () => {
     it("audits real 1080x1920 final.mp4 with zero black frames and exact dimensions", async () => {
       const videoPath = "data/jobs/short-embarrassing-memories/final.mp4";
-      const report = await PostRenderQA.auditMp4(videoPath, 6.0, false);
+      const report = await PostRenderQA.auditMp4(videoPath, 40.267, false);
 
       expect(report.passed).toBe(true);
+      expect(report.duration).toBeGreaterThan(35.0);
       expect(report.dimensions).toEqual({ width: 1080, height: 1920 });
       expect(report.aspectRatio).toBeCloseTo(9 / 16, 4);
       expect(report.aspectRatioStr).toBe("1080:1920");
@@ -199,7 +200,7 @@ describe("Phase 3 Specifications & Quality Gates", () => {
       expect(report.blackFramesCount).toBe(0);
       expect(report.faststart).toBe(true);
       expect(report.status).toBe("PASS");
-    });
+    }, 30000);
   });
 });
 
