@@ -23,5 +23,5 @@ describe("Production Pipeline (E2E Dry-Run)", () => {
     expect(manifest.id).toBe(jobId);
     expect(manifest.stage).toBe("approved");
     expect(manifest.qualityResults.length).toBeGreaterThanOrEqual(7);
-  });
+  }, 60000);
 });

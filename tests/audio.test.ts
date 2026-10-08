@@ -42,4 +42,28 @@ describe("Audio & Sound Design Engine", () => {
     const sfxTracks = mix.tracks.filter(t => t.kind === "sfx");
     expect(sfxTracks.length).toBeGreaterThanOrEqual(4);
   });
+
+  it("TimelineRetimer synchronizes scene durations to spoken narration timestamps", async () => {
+    const { TimelineRetimer } = await import("../src/audio/timeline-retimer.js");
+    const topic = TopicEngine.getTargetEmbarrassingMemoryTopic();
+    const script = ScriptEngine.generateScript(topic);
+    const storyboard = VisualPlanner.planStoryboard(topic, script);
+    const voice = (await VoiceEngine.synthesizeNarration(script.fullNarration, "/tmp", "am_michael", false)).value!;
+
+    const retimed = TimelineRetimer.retimeStoryboard(storyboard, voice, 1.0);
+
+    expect(retimed.canonicalTimeline?.retimed).toBe(true);
+    expect(retimed.scenes.length).toBe(storyboard.scenes.length);
+
+    // Sum of scene durations must equal retimed total duration
+    const sceneSum = retimed.scenes.reduce((sum, s) => sum + s.durationSec, 0);
+    expect(Math.abs(sceneSum - retimed.totalDurationSec)).toBeLessThan(0.01);
+
+    // Total duration must equal voice duration + end hold (1.0s)
+    expect(Math.abs(retimed.totalDurationSec - (voice.durationSec + 1.0))).toBeLessThan(0.01);
+
+    // Last scene must have at least 1.0s end hold
+    const lastScene = retimed.scenes[retimed.scenes.length - 1];
+    expect(lastScene.durationSec).toBeGreaterThanOrEqual(1.0);
+  });
 });

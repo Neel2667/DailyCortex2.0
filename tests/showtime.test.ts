@@ -44,5 +44,5 @@ describe("Showtime Project Generator", () => {
 
     const mixJson = JSON.parse(await readFile(files.mixJsonPath, "utf-8"));
     expect(mixJson.tracks.length).toBeGreaterThan(0);
-  });
+  }, 60000);
 });

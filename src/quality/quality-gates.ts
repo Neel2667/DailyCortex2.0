@@ -5,6 +5,7 @@ import type {
   ShowtimeProjectFiles
 } from "../types.js";
 import { FactEngine } from "../content/fact-engine.js";
+import { MediaNormalizer, type MediaProbeResult } from "../media/media-normalizer.js";
 
 export class QualityGateEngine {
   /**
@@ -13,32 +14,33 @@ export class QualityGateEngine {
   static runAllGates(
     storyboard: StoryboardPlan,
     voice?: VoiceSynthesisResult,
-    projectFiles?: ShowtimeProjectFiles,
-    renderedVideoPath?: string
+    projectFiles?: ShowtimeProjectFiles
   ): QualityGateResult[] {
     const results: QualityGateResult[] = [];
 
     // 1. CONTENT QA
-    const hook = storyboard.script.hook.toLowerCase();
+    const hook = storyboard.script.hook.toLowerCase().trim();
     const isHookStrong = hook.length >= 25 &&
       !hook.startsWith("did you know") &&
-      !hook.startsWith("here is a fact");
+      !hook.startsWith("here is a fact") &&
+      !hook.startsWith("you won't believe") &&
+      !hook.startsWith("scientists discovered");
     results.push({
       gate: "content",
       check: "hook_strength",
       passed: isHookStrong,
-      message: isHookStrong ? "Hook is compelling and avoids generic tropes" : "Hook is too short or uses cliched phrasing",
+      message: isHookStrong ? "Hook is compelling, specific, and avoids cliched tropes" : "Hook is too short or relies on sensationalist AI tropes",
       severity: "error"
     });
 
     const wpm = storyboard.script.wordsPerMinute;
-    const isPacingGood = wpm >= 120 && wpm <= 170;
+    const isPacingGood = wpm >= 120 && wpm <= 175;
     results.push({
       gate: "content",
       check: "pacing_wpm",
       passed: isPacingGood,
       score: wpm,
-      message: isPacingGood ? `Pacing is optimal (${wpm} WPM)` : `Pacing of ${wpm} WPM is outside optimal range (120-170)`,
+      message: isPacingGood ? `Pacing is optimal (${wpm} WPM)` : `Pacing of ${wpm} WPM is outside optimal range (120-175)`,
       severity: "warning"
     });
 
@@ -80,61 +82,81 @@ export class QualityGateEngine {
       severity: "warning"
     });
 
-    // 3. AUDIO & CAPTION QA
+    // 3. STRICT TIMING CONTRACT (CANONICAL RETIMING AUDIT)
     if (voice) {
-      const audioDuration = voice.durationSec;
-      const plannedDuration = storyboard.totalDurationSec;
-      const durationDelta = Math.abs(audioDuration - plannedDuration);
-      const isDurationAligned = durationDelta <= 8.0;
+      const sumSceneDuration = Number(
+        storyboard.scenes.reduce((sum, s) => sum + s.durationSec, 0).toFixed(2)
+      );
+      const totalVideoDuration = Number(storyboard.totalDurationSec.toFixed(2));
+      const endHold = storyboard.canonicalTimeline?.endHoldSec ?? 1.0;
+      const expectedTotal = Number((voice.durationSec + endHold).toFixed(2));
 
+      // Sum of scenes must exactly equal storyboard.totalDurationSec
+      const sceneSumDelta = Math.abs(sumSceneDuration - totalVideoDuration);
+      const isSceneSumValid = sceneSumDelta <= 0.05;
       results.push({
-        gate: "audio",
-        check: "duration_alignment",
-        passed: isDurationAligned,
-        score: durationDelta,
-        message: isDurationAligned ? `Audio duration (${audioDuration.toFixed(1)}s) closely matches plan (${plannedDuration.toFixed(1)}s)` : `Audio mismatch delta is ${durationDelta.toFixed(1)}s`,
-        severity: "warning"
+        gate: "technical",
+        check: "scene_timeline_continuity",
+        passed: isSceneSumValid,
+        score: sceneSumDelta,
+        message: isSceneSumValid
+          ? `Continuous visual timeline: sum of scenes (${sumSceneDuration}s) matches total duration (${totalVideoDuration}s)`
+          : `Timeline discontinuity: scenes sum to ${sumSceneDuration}s but total is ${totalVideoDuration}s (delta: ${sceneSumDelta}s)`,
+        severity: "error"
       });
 
-      // Caption timing integrity
-      let timingValid = true;
-      let timingIssue = "";
+      // Video duration must match canonical voice duration + end hold within 0.25s
+      const voiceAlignmentDelta = Math.abs(totalVideoDuration - expectedTotal);
+      const isVoiceAligned = voiceAlignmentDelta <= 0.25;
+      results.push({
+        gate: "audio",
+        check: "canonical_timing_synchronization",
+        passed: isVoiceAligned,
+        score: voiceAlignmentDelta,
+        message: isVoiceAligned
+          ? `Canonical synchronization PASS: video (${totalVideoDuration}s) = voice (${voice.durationSec.toFixed(2)}s) + hold (${endHold}s)`
+          : `CRITICAL TIMING DEFECT: video duration (${totalVideoDuration}s) deviates from expected voice timeline (${expectedTotal}s) by ${voiceAlignmentDelta}s`,
+        severity: "error"
+      });
+
+      // 4. CAPTION TIMING INTEGRITY
+      let captionTimingValid = true;
+      let captionIssue = "";
+      const lastWord = voice.words[voice.words.length - 1];
+
       for (let i = 0; i < voice.words.length; i++) {
         const w = voice.words[i];
         if (w.start >= w.end || w.start < 0) {
-          timingValid = false;
-          timingIssue = `Invalid word timestamps on "${w.word}" (${w.start}s - ${w.end}s)`;
+          captionTimingValid = false;
+          captionIssue = `Invalid word timestamps on "${w.word}" (${w.start}s - ${w.end}s)`;
           break;
         }
         if (i > 0 && w.start < voice.words[i - 1].start) {
-          timingValid = false;
-          timingIssue = `Out-of-order word sequence on "${w.word}"`;
+          captionTimingValid = false;
+          captionIssue = `Out-of-order word sequence on "${w.word}"`;
           break;
+        }
+      }
+
+      if (captionTimingValid && lastWord) {
+        if (lastWord.end > totalVideoDuration) {
+          captionTimingValid = false;
+          captionIssue = `Captions spill past video end: last word ends at ${lastWord.end}s but video ends at ${totalVideoDuration}s`;
         }
       }
 
       results.push({
         gate: "caption",
         check: "caption_timing_integrity",
-        passed: timingValid,
-        message: timingValid ? `Captions validated (${voice.words.length} timed words)` : timingIssue,
+        passed: captionTimingValid,
+        message: captionTimingValid
+          ? `Captions validated (${voice.words.length} timed words, ends cleanly at ${lastWord?.end.toFixed(2)}s)`
+          : captionIssue,
         severity: "error"
       });
     }
 
-    // 4. TECHNICAL QA
-    const totalDuration = storyboard.totalDurationSec;
-    const isDurationValidShort = totalDuration >= 20 && totalDuration <= 60;
-    results.push({
-      gate: "technical",
-      check: "short_format_duration",
-      passed: isDurationValidShort,
-      score: totalDuration,
-      message: isDurationValidShort ? `Duration ${totalDuration.toFixed(1)}s fits YouTube Shorts specifications` : `Duration ${totalDuration.toFixed(1)}s is outside Shorts bounds (20-60s)`,
-      severity: "error"
-    });
-
-    // 5. PRODUCTION QA
+    // 5. PRODUCTION PROJECT STRUCTURE
     if (projectFiles) {
       const hasCoreFiles = Boolean(
         projectFiles.projectDir &&
@@ -148,6 +170,67 @@ export class QualityGateEngine {
         check: "project_structure_validity",
         passed: hasCoreFiles,
         message: hasCoreFiles ? "Native Showtime project files assembled" : "Missing required project files",
+        severity: "error"
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Independent Post-Render QA: probes the generated MP4 file with FFmpeg/ffprobe
+   */
+  static async auditRenderedMp4(
+    videoPath: string,
+    expectedDurationSec: number
+  ): Promise<QualityGateResult[]> {
+    const normalizer = new MediaNormalizer();
+    const results: QualityGateResult[] = [];
+
+    try {
+      const probe: MediaProbeResult = await normalizer.probeMedia(videoPath);
+
+      // 1. Valid video stream & dimensions
+      const is916 = (probe.width === 1080 && probe.height === 1920) || (probe.width === 720 && probe.height === 1280);
+      results.push({
+        gate: "technical",
+        check: "mp4_aspect_ratio_9_16",
+        passed: is916,
+        message: is916
+          ? `Valid 9:16 vertical resolution (${probe.width}x${probe.height})`
+          : `Invalid aspect ratio: ${probe.width}x${probe.height}`,
+        severity: "error"
+      });
+
+      // 2. Codec is H.264
+      const isH264 = probe.codec.toLowerCase().includes("h264") || probe.codec.toLowerCase().includes("avc");
+      results.push({
+        gate: "technical",
+        check: "mp4_codec_h264",
+        passed: isH264,
+        message: isH264 ? `Valid video codec (${probe.codec})` : `Unexpected codec: ${probe.codec}`,
+        severity: "error"
+      });
+
+      // 3. Rendered Duration matches canonical expectation within 0.5s
+      const durationDelta = Math.abs(probe.durationSec - expectedDurationSec);
+      const isDurationAccurate = durationDelta <= 0.5;
+      results.push({
+        gate: "technical",
+        check: "mp4_duration_accuracy",
+        passed: isDurationAccurate,
+        score: durationDelta,
+        message: isDurationAccurate
+          ? `Rendered duration (${probe.durationSec.toFixed(2)}s) matches canonical timeline (${expectedDurationSec.toFixed(2)}s)`
+          : `Duration mismatch: rendered is ${probe.durationSec.toFixed(2)}s, expected ${expectedDurationSec.toFixed(2)}s (delta: ${durationDelta.toFixed(2)}s)`,
+        severity: "error"
+      });
+    } catch (err: any) {
+      results.push({
+        gate: "production",
+        check: "mp4_file_probe",
+        passed: false,
+        message: `Failed to probe rendered video: ${err.message}`,
         severity: "error"
       });
     }

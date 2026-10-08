@@ -12,6 +12,7 @@ import { ScriptEngine } from "../content/script-engine.js";
 import { VisualPlanner } from "../content/visual-planner.js";
 import { AssetManager } from "../media/asset-manager.js";
 import { VoiceEngine } from "../audio/voice-engine.js";
+import { TimelineRetimer } from "../audio/timeline-retimer.js";
 import { ShowtimeProjectBuilder } from "../showtime/project-builder.js";
 import { ShowtimeRunner } from "../showtime/runner.js";
 import { QualityGateEngine } from "../quality/quality-gates.js";
@@ -43,7 +44,9 @@ export class ProductionPipeline {
     const outputRoot = options.outputRoot ?? "data/jobs";
     const workDir = join(outputRoot, jobId);
     const projectDir = join(workDir, "project");
+    const reportsDir = join(workDir, "reports");
     await mkdir(workDir, { recursive: true });
+    await mkdir(reportsDir, { recursive: true });
 
     const state: JobState = {
       id: jobId,
@@ -82,7 +85,7 @@ export class ProductionPipeline {
       const storyboard = VisualPlanner.planStoryboard(topic, script);
       state.storyboard = storyboard;
 
-      // 5. ASSET SOURCING & DEDUPLICATION
+      // 5. ASSET SOURCING & DEDUPLICATION (Normalized 1080x1920 Video Assets)
       state.stage = "asset_sourcing";
       const assets = await this.assetManager.resolveAssetsForScenes(storyboard.scenes);
       state.assets = assets;
@@ -105,17 +108,22 @@ export class ProductionPipeline {
       }
       state.voiceResult = voiceResult.value;
 
+      // 6b. CANONICAL RETIMING: Narration speech timestamps drive scene durations exactly
+      const retimedStoryboard = TimelineRetimer.retimeStoryboard(storyboard, state.voiceResult, 1.0);
+      state.storyboard = retimedStoryboard;
+
       // 7. PROJECT ASSEMBLY (NATIVE SHOWTIME PROJECT GENERATION)
       state.stage = "project_assembly";
       const projectFiles: ShowtimeProjectFiles = await ShowtimeProjectBuilder.buildProject(
         projectDir,
-        storyboard,
-        state.voiceResult
+        state.storyboard,
+        state.voiceResult,
+        state.assets
       );
 
       // 8. PRE-RENDER QUALITY GATES
       state.stage = "pre_render_qa";
-      const qualityResults = QualityGateEngine.runAllGates(storyboard, state.voiceResult, projectFiles);
+      const qualityResults = QualityGateEngine.runAllGates(state.storyboard, state.voiceResult, projectFiles);
       state.qualityResults = qualityResults;
       QualityGateEngine.assertPassed(qualityResults);
 
@@ -134,8 +142,11 @@ export class ProductionPipeline {
           throw new Error(`Showtime render failed: ${renderResult.stderr || renderResult.stdout}`);
         }
 
-        // 10. POST-RENDER VIDEO QA
+        // 10. POST-RENDER VIDEO QA (INDEPENDENT FFPROBE AUDIT + SHOWTIME QA)
         state.stage = "post_render_qa";
+        const independentAudit = await QualityGateEngine.auditRenderedMp4(renderPath, state.storyboard.totalDurationSec);
+        state.qualityResults.push(...independentAudit);
+
         const qaResult = await this.showtimeRunner.qa(renderPath, "shorts");
         const postRenderQuality: QualityGateResult = {
           gate: "production",
@@ -145,13 +156,26 @@ export class ProductionPipeline {
           severity: "error"
         };
         state.qualityResults.push(postRenderQuality);
-        if (!qaResult.success) {
-          throw new Error(`Post-render QA failed: ${postRenderQuality.message}`);
-        }
+
+        QualityGateEngine.assertPassed(state.qualityResults);
       }
 
       state.stage = "approved";
       state.updatedAt = new Date().toISOString();
+
+      // Write video quality report
+      await writeFile(
+        join(reportsDir, "video-quality.json"),
+        JSON.stringify({
+          jobId: state.id,
+          topic: state.topic?.topic,
+          totalDurationSec: state.storyboard?.totalDurationSec,
+          renderPath: state.renderPath,
+          results: state.qualityResults,
+          passed: state.qualityResults.every(r => r.passed || r.severity !== "error")
+        }, null, 2),
+        "utf-8"
+      );
 
       // Write job manifest to workDir
       await writeFile(join(workDir, "job-manifest.json"), JSON.stringify(state, null, 2), "utf-8");

@@ -1,6 +1,10 @@
 import type { AssetProvider, MediaAsset, ProviderResult } from "../types.js";
+import { MediaNormalizer } from "./media-normalizer.js";
+import { join } from "node:path";
 
 export class MockAssetProvider implements AssetProvider {
+  constructor(private normalizer?: MediaNormalizer) {}
+
   async search(
     query: string,
     options: { limit?: number; orientation?: "portrait" | "landscape" | "square" } = {}
@@ -11,10 +15,12 @@ export class MockAssetProvider implements AssetProvider {
     const assets: MediaAsset[] = [];
     for (let i = 1; i <= limit; i++) {
       const id = `mock-${cleanQuery.replace(/\s+/g, "-")}-${i}`;
+      const localPath = join("data/assets/cache", `${id}.mp4`);
       assets.push({
         id,
         provider: "mock",
-        url: `assets/placeholders/${id}.mp4`,
+        url: localPath,
+        localPath,
         mediaType: "video",
         width: 1080,
         height: 1920,

@@ -3,22 +3,24 @@ import type { StoryboardPlan } from "../types.js";
 export class ShowtimeHtmlBuilder {
   /**
    * Generates production-ready index.html for Showtime DOM vertical short (9:16)
+   * Includes video background plates, mobile safe zones, SVG icons (zero emoji 404s),
+   * and synchronized karaoke captions.
    */
-  static buildHtml(storyboard: StoryboardPlan, emphasisWords: string = "cringe,exile,survival,rejection,safe"): string {
-    let currentStart = 0;
+  static buildHtml(storyboard: StoryboardPlan, emphasisWords = "cringe,exile,survival,rejection,safe,memory"): string {
     const sceneSectionsHtml = storyboard.scenes.map((scene, idx) => {
       const isFirst = idx === 0;
       const startAttr = isFirst ? `data-start="0"` : `data-start="#scene-${idx}"`;
       const durAttr = `data-dur="${scene.durationSec.toFixed(2)}"`;
       const transAttr = isFirst ? "" : `data-transition="${scene.transition}"`;
+      const assetRelPath = scene.assetPath || `assets/scene-${scene.sceneNumber}.webm`;
 
-      let innerContent = "";
+      let innerCard = "";
 
       switch (scene.type) {
         case "hook":
-          innerContent = `
+          innerCard = `
     <div class="card-hero" data-st-decor>
-      <div class="badge-tag" style="background: ${scene.cardLayout?.accentColor ?? '#F43F5E'}22; color: ${scene.cardLayout?.accentColor ?? '#F43F5E'}; border-color: ${scene.cardLayout?.accentColor ?? '#F43F5E'}55;">
+      <div class="badge-tag" style="background: rgba(244, 63, 94, 0.22); color: #FDA4AF; border-color: rgba(244, 63, 94, 0.5);">
         ${scene.cardLayout?.badge ?? 'BRAIN ALERT'}
       </div>
       <h1 class="t-hero" data-st="kinetic-type" data-style="pop" data-by="words" data-at="0.15">
@@ -35,9 +37,9 @@ export class ShowtimeHtmlBuilder {
           break;
 
         case "reaction":
-          innerContent = `
+          innerCard = `
     <div class="card-glass" data-st-decor>
-      <div class="badge-tag" style="background: ${scene.cardLayout?.accentColor ?? '#38BDF8'}22; color: ${scene.cardLayout?.accentColor ?? '#38BDF8'}; border-color: ${scene.cardLayout?.accentColor ?? '#38BDF8'}55;">
+      <div class="badge-tag" style="background: rgba(56, 189, 248, 0.22); color: #BAE6FD; border-color: rgba(56, 189, 248, 0.5);">
         ${scene.cardLayout?.badge ?? 'MEMORY PARADOX'}
       </div>
       <h2 class="t-headline" data-st="kinetic-type" data-style="rise" data-at="0.2">
@@ -60,25 +62,35 @@ export class ShowtimeHtmlBuilder {
           break;
 
         case "diagram":
-          innerContent = `
+          innerCard = `
     <div class="card-diagram" data-st-decor>
-      <div class="badge-tag" style="background: ${scene.cardLayout?.accentColor ?? '#F59E0B'}22; color: ${scene.cardLayout?.accentColor ?? '#F59E0B'}; border-color: ${scene.cardLayout?.accentColor ?? '#F59E0B'}55;">
+      <div class="badge-tag" style="background: rgba(245, 158, 11, 0.22); color: #FDE68A; border-color: rgba(245, 158, 11, 0.45);">
         ${scene.cardLayout?.badge ?? 'ANCESTRAL BLUEPRINT'}
       </div>
       <h2 class="t-headline">${scene.cardLayout?.headline ?? 'SOCIAL = PHYSICAL PAIN'}</h2>
       <div class="threat-matrix">
         <div class="matrix-node pulse">
-          <div class="node-icon">⚠️</div>
+          <div class="node-icon-svg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
           <div class="node-title">Social Error</div>
         </div>
-        <div class="matrix-arrow">➔</div>
+        <div class="matrix-arrow">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#CBD5E1" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div class="matrix-node warning">
-          <div class="node-icon">🚫</div>
+          <div class="node-icon-svg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </div>
           <div class="node-title">Tribal Exile</div>
         </div>
-        <div class="matrix-arrow">➔</div>
+        <div class="matrix-arrow">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#CBD5E1" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div class="matrix-node critical">
-          <div class="node-icon">💀</div>
+          <div class="node-icon-svg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="9" cy="10" r="2"/><circle cx="15" cy="10" r="2"/><path d="M12 2a8 8 0 0 0-8 8c0 3 1.5 5.5 4 7v3h8v-3c2.5-1.5 4-4 4-7a8 8 0 0 0-8-8z"/><line x1="9" y1="20" x2="15" y2="20"/></svg>
+          </div>
           <div class="node-title">Mortal Danger</div>
         </div>
       </div>
@@ -87,9 +99,9 @@ export class ShowtimeHtmlBuilder {
           break;
 
         case "mixed":
-          innerContent = `
+          innerCard = `
     <div class="card-glass" data-st-decor>
-      <div class="badge-tag" style="background: ${scene.cardLayout?.accentColor ?? '#10B981'}22; color: ${scene.cardLayout?.accentColor ?? '#10B981'}; border-color: ${scene.cardLayout?.accentColor ?? '#10B981'}55;">
+      <div class="badge-tag" style="background: rgba(16, 185, 129, 0.22); color: #A7F3D0; border-color: rgba(16, 185, 129, 0.5);">
         ${scene.cardLayout?.badge ?? 'NEURAL SCAN'}
       </div>
       <h2 class="t-headline">${scene.cardLayout?.headline ?? 'AMYGDALA OVERRIDE'}</h2>
@@ -113,9 +125,9 @@ export class ShowtimeHtmlBuilder {
 
         case "payoff":
         default:
-          innerContent = `
+          innerCard = `
     <div class="card-hero payoff" data-st-decor>
-      <div class="badge-tag" style="background: ${scene.cardLayout?.accentColor ?? '#8B5CF6'}22; color: ${scene.cardLayout?.accentColor ?? '#8B5CF6'}; border-color: ${scene.cardLayout?.accentColor ?? '#8B5CF6'}55;">
+      <div class="badge-tag" style="background: rgba(139, 92, 246, 0.22); color: #DDD6FE; border-color: rgba(139, 92, 246, 0.5);">
         ${scene.cardLayout?.badge ?? 'DAILY CORTEX'}
       </div>
       <h1 class="t-hero" data-st="kinetic-type" data-style="pop" data-by="words" data-at="0.1">
@@ -125,18 +137,22 @@ export class ShowtimeHtmlBuilder {
         ${scene.cardLayout?.subtext ?? 'Your brain is protecting your belonging.'}
       </p>
       <div class="channel-pill">
-        <span class="channel-logo">🧠</span>
+        <div class="channel-icon-svg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/></svg>
+        </div>
         <span class="channel-name">Daily Cortex</span>
       </div>
     </div>`;
           break;
       }
 
-      currentStart += scene.durationSec;
-
-      return `  <!-- Scene ${scene.sceneNumber}: ${scene.type} (${scene.durationSec.toFixed(1)}s) -->
+      return `  <!-- Scene ${scene.sceneNumber}: ${scene.type} (${scene.durationSec.toFixed(2)}s) -->
   <section class="scene" id="scene-${scene.sceneNumber}" ${startAttr} ${durAttr} ${transAttr}>
-${innerContent}
+    <div class="scene-media-wrap">
+      <video class="scene-media" src="${assetRelPath}" autoplay muted loop playsinline></video>
+      <div class="scene-overlay"></div>
+    </div>
+${innerCard}
   </section>`;
     }).join("\n\n");
 
@@ -157,14 +173,35 @@ ${innerContent}
     --accent-amber: #F59E0B;
     --accent-emerald: #10B981;
     --accent-purple: #8B5CF6;
-    --border-glass: rgba(255, 255, 255, 0.12);
+    --border-glass: rgba(255, 255, 255, 0.14);
   }
 
   .scene {
-    background:
-      radial-gradient(75% 38% at 15% 10%, rgba(56, 189, 248, 0.12), transparent 70%),
-      radial-gradient(90% 45% at 85% 80%, rgba(139, 92, 246, 0.14), transparent 70%),
-      var(--bg-dark);
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-dark);
+  }
+
+  /* Background video container */
+  .scene-media-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .scene-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.65;
+    filter: brightness(0.65) contrast(1.15);
+  }
+  .scene-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(7, 9, 19, 0.5) 0%, rgba(7, 9, 19, 0.78) 55%, rgba(7, 9, 19, 0.96) 100%);
   }
 
   .scene::before {
@@ -172,7 +209,8 @@ ${innerContent}
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.35;
+    z-index: 1;
+    opacity: 0.3;
     background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
@@ -189,11 +227,12 @@ ${innerContent}
     top: 13cqh;
     padding: 5cqw;
     border-radius: 4cqw;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    z-index: 2;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--border-glass);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .badge-tag {
@@ -204,7 +243,7 @@ ${innerContent}
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid;
-    margin-bottom: 2.5cqh;
+    margin-bottom: 2.2cqh;
   }
 
   .t-hero {
@@ -224,13 +263,13 @@ ${innerContent}
   .t-sub {
     font: 500 4.8cqw/1.35 var(--font-body, sans-serif);
     color: #94A3B8;
-    margin: 0 0 2.5cqh;
+    margin: 0 0 2.2cqh;
   }
 
   .t-subtext, .t-note {
     font: 450 4.2cqw/1.3 var(--font-body, sans-serif);
     color: #94A3B8;
-    margin-top: 2cqh;
+    margin-top: 1.8cqh;
   }
 
   /* Clock display component */
@@ -238,10 +277,10 @@ ${innerContent}
     display: inline-flex;
     align-items: baseline;
     gap: 1.5cqw;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     padding: 2cqw 4cqw;
     border-radius: 2.5cqw;
-    border: 1px solid rgba(244, 63, 94, 0.3);
+    border: 1px solid rgba(244, 63, 94, 0.35);
   }
   .clock-digit {
     font: 700 8cqw/1 var(--font-mono, monospace);
@@ -261,17 +300,17 @@ ${innerContent}
   .comparison-grid {
     display: flex;
     flex-direction: column;
-    gap: 2cqh;
-    margin: 2cqh 0;
+    gap: 1.8cqh;
+    margin: 1.5cqh 0;
   }
   .comparison-col {
     display: flex;
     flex-direction: column;
-    gap: 1cqh;
+    gap: 0.8cqh;
   }
   .comp-label {
     font: 600 3.6cqw/1 var(--font-mono, monospace);
-    color: #64748B;
+    color: #CBD5E1;
     text-transform: uppercase;
   }
   .comp-val {
@@ -288,26 +327,34 @@ ${innerContent}
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
   }
 
-  /* Threat matrix */
+  /* Threat matrix with inline SVG icons (Zero emoji 404s) */
   .threat-matrix {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5cqw;
-    margin: 2cqh 0;
+    margin: 1.8cqh 0;
   }
   .matrix-node {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 2.5cqw 1cqw;
-    background: rgba(0, 0, 0, 0.4);
+    padding: 2.2cqw 1cqw;
+    background: rgba(0, 0, 0, 0.5);
     border-radius: 2.5cqw;
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
-  .node-icon { font-size: 5cqw; margin-bottom: 0.8cqh; }
-  .node-title { font: 600 3cqw/1.1 var(--font-body, sans-serif); color: #F1F5F9; text-align: center; }
+  .node-icon-svg {
+    width: 6cqw;
+    height: 6cqw;
+    margin-bottom: 0.8cqh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .node-icon-svg svg { width: 100%; height: 100%; }
+  .node-title { font: 600 3.2cqw/1.1 var(--font-body, sans-serif); color: #F1F5F9; text-align: center; }
   .matrix-arrow { font: 700 4cqw/1 var(--font-mono, monospace); color: #64748B; }
 
   /* Status box */
@@ -315,10 +362,10 @@ ${innerContent}
     display: flex;
     flex-direction: column;
     gap: 1.5cqh;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.5);
     padding: 3cqw 4cqw;
     border-radius: 3cqw;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(16, 185, 129, 0.35);
   }
   .status-row {
     display: flex;
@@ -346,7 +393,8 @@ ${innerContent}
     border-radius: 3cqw;
     margin-top: 1cqh;
   }
-  .channel-logo { font-size: 4.8cqw; }
+  .channel-icon-svg { width: 5.5cqw; height: 5.5cqw; }
+  .channel-icon-svg svg { width: 100%; height: 100%; }
   .channel-name { font: 700 4.2cqw/1 var(--font-display, sans-serif); color: #DDD6FE; }
 </style>
 </head>

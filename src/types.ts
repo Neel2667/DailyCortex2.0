@@ -73,6 +73,19 @@ export type MotionTreatment =
   | "focus-zoom"
   | "split-reveal";
 
+export type SceneMood =
+  | "dark_night_bedroom"
+  | "ambient_cafe"
+  | "neural_threat_matrix"
+  | "fmri_scan_clinical"
+  | "sunset_relief_peace";
+
+export type NarrativeStructure =
+  | "OBSERVATION_SURPRISE"
+  | "MYSTERY_REVEAL"
+  | "CONTRADICTION_IMPLICATION"
+  | "QUESTION_MECHANISM";
+
 export interface ScenePlan {
   id: string;
   sceneNumber: number;
@@ -81,6 +94,8 @@ export interface ScenePlan {
   narrationText: string;
   visualPrompt: string;
   assetQuery?: string;
+  assetPath?: string;
+  mood?: SceneMood;
   onScreenText?: string;
   motion: MotionTreatment;
   transition: string; // e.g. "push up 0.4", "sdf-iris 0.5", "crossfade 0.3"
@@ -98,6 +113,7 @@ export interface ScriptBeat {
   name: "hook" | "tension" | "mechanism" | "example" | "insight" | "payoff";
   narration: string;
   estimatedSec: number;
+  spokenSec?: number;
   targetVisual: SceneType;
 }
 
@@ -105,6 +121,7 @@ export interface ScriptSpec {
   title: string;
   hook: string;
   coreInsight: string;
+  narrativeStructure: NarrativeStructure;
   beats: ScriptBeat[];
   fullNarration: string;
   estimatedTotalSec: number;
@@ -153,6 +170,12 @@ export interface StoryboardPlan {
     style: "minimal-pulse" | "synthwave" | "lofi-beat" | "cinematic-ambient";
     bpm: number;
     duckingDb: number;
+  };
+  canonicalTimeline?: {
+    narrationDurationSec: number;
+    endHoldSec: number;
+    totalDurationSec: number;
+    retimed: boolean;
   };
 }
 

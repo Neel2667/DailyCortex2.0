@@ -89,4 +89,20 @@ describe("Media Intelligence Engine", () => {
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(3); // strictly deduplicated
   });
+
+  it("MediaNormalizer creates deterministic cache identity and generates 9:16 motion plates", async () => {
+    const { MediaNormalizer } = await import("../src/media/media-normalizer.js");
+    const normalizer = new MediaNormalizer();
+    const cacheKey = normalizer.computeCacheKey("pexels", "12345", { width: 1080, height: 1920 });
+    expect(cacheKey.length).toBe(64); // SHA-256 hex string
+
+    // Generates valid local synthetic motion plate
+    const platePath = await normalizer.generateDynamicMotionPlate("dark_night_bedroom", 1.0);
+    const probe = await normalizer.probeMedia(platePath);
+
+    expect(probe.width).toBe(1080);
+    expect(probe.height).toBe(1920);
+    expect(probe.durationSec).toBeGreaterThanOrEqual(0.9);
+    expect(probe.codec.toLowerCase()).toMatch(/vp9|h264|avc/);
+  }, 15000);
 });
