@@ -6,6 +6,8 @@ dist/
 data/jobs/
 data/assets/
 data/renders/
+pipeline/
+showtime-out/
 *.mp4
 *.wav
 *.mp3

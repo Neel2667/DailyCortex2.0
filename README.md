@@ -1,37 +1,109 @@
 # DailyCortex 2.0
 
-Automated YouTube content factory built around [Showtime](https://github.com/FavioVazquez/showtime).
+Automated YouTube Short production factory built around [Showtime](https://github.com/FavioVazquez/showtime) and local neural speech intelligence.
 
-## Goal
+## Product Vision
 
-Turn a topic into a research-backed, visually planned, narrated, captioned and rendered video, then eventually publish and learn from analytics.
+DailyCortex produces high-retention, psychology and neuroscience vertical videos (9:16 Shorts) designed to captivate viewers and eliminate generic AI video cliches:
+- **No static slides or PowerPoint templates**
+- **No repetitive stock clips or glowing-brain cliches**
+- **No disconnected narration and imagery**
+- **Dynamic visual grammar:** Interweaving kinetic typography, human reactions, biological diagrams, and punchy payoffs.
+- **Accurate science:** Distinct separation of verified scientific facts, interpretations, and speculations.
+- **Synchronized audio & captions:** Native millisecond-precision word timings driving animated karaoke captions and ducked sound design.
+
+---
 
 ## Architecture
 
-Research/content intelligence → Groq script generation → visual plan → asset providers (Pexels/Openverse/local) → Edge TTS → Showtime production/rendering → QA → YouTube publisher → analytics/learning.
+```
+TOPIC DISCOVERY & SELECTION
+            ↓
+FACT ENGINE (Verified Facts / Claims)
+            ↓
+SCRIPT ENGINE (Fast Pacing, 130-165 WPM, High-Curiosity Hooks)
+            ↓
+VISUAL STORYBOARD PLANNER (Multimodal beats & transitions)
+            ↓
+MEDIA INTELLIGENCE (Scoring, 9:16 prioritization, deduplication)
+            ↓
+AUDIO ENGINE (Kokoro ONNX Neural Voice + Ducked Procedural Music & SFX)
+            ↓
+SHOWTIME PRODUCTION (showtime.json + 9:16 HTML Stage + audio/mix.json + words.json)
+            ↓
+QUALITY GATES (Content, Factual, Visual, Audio, Caption, Technical QA)
+            ↓
+HEADLESS CHROME RENDER & POST-RENDER QA (-14 LUFS, frame verification)
+```
 
-Showtime is treated as the production engine, not as the whole automation system.
+---
 
-## Current status
+## Project Structure
 
-Phase 0 foundation:
-- typed content specification
-- provider interfaces
-- Groq, Pexels and Edge-TTS adapters
-- Showtime CLI adapter
-- deterministic manifest/job generation
-- quality-gate model
-- tests and GitHub Actions
+```
+├── docs/
+│   └── ENGINEERING_AUDIT.md       # Comprehensive system audit & findings
+├── src/
+│   ├── content/                   # Content Intelligence
+│   │   ├── fact-engine.ts         # Claim validation and scientific truth checks
+│   │   ├── topic-engine.ts        # Curated psychology/brain topics library
+│   │   ├── script-engine.ts       # Structured script generation and pacing
+│   │   └── visual-planner.ts      # Multimodal storyboard & transition planner
+│   ├── media/                     # Media Intelligence
+│   │   ├── asset-scorer.ts        # Multi-factor scoring & duplicate penalty
+│   │   ├── asset-manager.ts       # Multi-provider resolution & local caching
+│   │   └── mock-provider.ts       # Deterministic offline asset provider
+│   ├── audio/                     # Audio & Sound Design
+│   │   ├── voice-engine.ts        # Showtime Kokoro ONNX speech & word timing
+│   │   └── sound-design.ts        # Procedural music ducking & transition SFX
+│   ├── showtime/                  # Native Showtime Production
+│   │   ├── html-builder.ts        # Mobile safe zone 9:16 HTML5 stage builder
+│   │   ├── project-builder.ts     # Complete Showtime project disk assembler
+│   │   └── runner.ts              # Headless Chrome render & QA runner
+│   ├── quality/                   # Multi-Layer Quality Gates
+│   │   └── quality-gates.ts       # Content, visual, audio, caption, technical QA
+│   ├── orchestration/             # Factory Pipeline
+│   │   └── pipeline.ts            # End-to-end multi-stage pipeline coordinator
+│   ├── cli.ts                     # CLI commands (dry-run, generate, render)
+│   ├── types.ts                   # Core domain type contracts
+│   └── config.ts                  # Environment configuration
+└── tests/                         # Full automated test suite (17 tests)
+```
 
-Publishing and analytics are intentionally not implemented yet.
+---
 
-## Development
+## Getting Started
 
+### Prerequisites
+- Node.js v20+
+- [Showtime](https://github.com/FavioVazquez/showtime) CLI installed and available in PATH (or configured via `SHOWTIME_BIN`)
+- FFmpeg (for video encoding and loudness normalization)
+
+### Installation
 ```bash
 npm install
-npm test
+```
+
+### Running Tests & Typecheck
+```bash
 npm run typecheck
+npm test
+```
+
+### Dry-Run Mode (100% Offline, Deterministic, 0 API Keys Needed)
+Generates the full project for the target video *"Why Embarrassing Memories Never Fade"*, validates all quality gates, and creates inspectable native Showtime project files:
+```bash
 npm run dry-run
 ```
 
-Copy `.env.example` to `.env` when integrating external providers. Never commit secrets.
+### Generate Native Showtime Project with Real Local Voice
+Synthesizes real Kokoro neural speech (`vo.wav`), extracts millisecond-accurate word timestamps (`words.json`), and assembles the full Showtime project:
+```bash
+npx tsx src/cli.ts generate
+```
+
+### Full Render & Video QA
+Renders the assembled project via Headless Chrome to a finished 9:16 MP4 with -14 LUFS audio normalization:
+```bash
+npx tsx src/cli.ts render
+```
